@@ -20,4 +20,4 @@ The common provider starts only when the NVIDIA driver images match the audited 
 
 `common-vrss-provider/calibration.txt` starts at horizontal/vertical gain 1 and eye offsets 0. Tuner can edit it. Diagnostics and run logs go to `%LOCALAPPDATA%\VRSS Tuner`. NVIDIA and Pimax driver binaries are not included.
 
-Project-authored code is MIT licensed. The bundled OpenVR and NVAPI components retain the terms in `OpenVR-LICENSE.txt` and `NVAPI-LICENSE.txt`. This is not an official NVIDIA, Pimax, Valve, or VRChat product.
+Project-authored code is MIT licensed; see `LICENSE.txt`. The bundled OpenVR and NVAPI components retain the terms in `OpenVR-LICENSE.txt` and `NVAPI-LICENSE.txt`. This is not an official NVIDIA, Pimax, Valve, or VRChat product.

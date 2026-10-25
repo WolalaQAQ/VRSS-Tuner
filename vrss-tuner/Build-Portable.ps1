@@ -28,13 +28,14 @@ foreach ($name in @('Test-Setup.ps1','Start-Provider.ps1','Stop-Provider.ps1','T
 }
 Copy-Item -LiteralPath (Join-Path $here 'portable\README.md') -Destination (Join-Path $bundle 'README.md')
 Copy-Item -LiteralPath (Join-Path $here 'portable\README.en.md') -Destination (Join-Path $bundle 'README.en.md')
+Copy-Item -LiteralPath (Join-Path $research 'LICENSE') -Destination (Join-Path $bundle 'LICENSE.txt') -ErrorAction Stop
 Copy-Item -LiteralPath (Join-Path $openvr 'LICENSE') -Destination (Join-Path $bundle 'OpenVR-LICENSE.txt') -ErrorAction Stop
 Copy-Item -LiteralPath (Join-Path $nvapi 'License.txt') -Destination (Join-Path $bundle 'NVAPI-LICENSE.txt')
 $files = @('VRSS Tuner.exe','common-vrss-provider/common_vrss_provider.exe',
     'common-vrss-provider/export_openvr_geometry.exe','common-vrss-provider/openvr_api.dll',
     'common-vrss-provider/calibration.txt',
     'Test-Setup.ps1','Start-Provider.ps1','Stop-Provider.ps1',
-    'Test-Setup.cmd','Start-Provider.cmd','Stop-Provider.cmd','README.md','README.en.md',
+    'Test-Setup.cmd','Start-Provider.cmd','Stop-Provider.cmd','README.md','README.en.md','LICENSE.txt',
     'OpenVR-LICENSE.txt','NVAPI-LICENSE.txt')
 $entries = foreach ($name in $files) {
     [ordered]@{path=$name;sha256=(Get-FileHash -LiteralPath (Join-Path $bundle $name) -Algorithm SHA256).Hash}

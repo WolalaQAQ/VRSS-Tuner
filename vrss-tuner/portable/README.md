@@ -20,4 +20,4 @@ Pimax等の公式視線プロバイダーが動作中は、この共通プロバ
 
 `common-vrss-provider/calibration.txt` は共通経路専用の初期値です。配布時の値は横・縦倍率1、左右オフセット0です。Tunerから変更できます。診断結果と実行ログは `%LOCALAPPDATA%\VRSS Tuner` に保存されます。NVIDIA/Pimaxドライバー本体は同梱していません。
 
-本プロジェクトのコードはMITライセンスです。同梱のOpenVRとNVAPIにはそれぞれ`OpenVR-LICENSE.txt`、`NVAPI-LICENSE.txt`の条件が適用されます。NVIDIA、Pimax、Valve、VRChatの公式製品ではありません。
+本プロジェクトのコードはMITライセンスです。本文は`LICENSE.txt`にあります。同梱のOpenVRとNVAPIにはそれぞれ`OpenVR-LICENSE.txt`、`NVAPI-LICENSE.txt`の条件が適用されます。NVIDIA、Pimax、Valve、VRChatの公式製品ではありません。
