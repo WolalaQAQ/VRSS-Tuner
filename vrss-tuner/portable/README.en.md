@@ -4,6 +4,8 @@ This is an experimental Windows app for NVIDIA VRSS2 settings and gaze input. Sw
 
 **The only headset visually verified by the developer is Pimax Dream Air** (GeForce RTX 5090 / NVIDIA driver 610.88). Other headsets and PCs are unverified. See the [full English setup guide](https://github.com/challenger0303/VRSS-Tuner/blob/main/docs/SETUP.md).
 
+The Gaze Input tab shows reception, relay, common-provider registration and NVIDIA gaze-update status. The eye dots are submitted gaze positions, not the rendered high-quality area. PSVR2 is a candidate input through PSVR2Toolkit/Baballonia and the common provider; live operation is unverified.
+
 ## First use
 
 1. Install an NVIDIA GPU driver, VRChat, SteamVR, and an eye-tracking source. For Baballonia, send both-eye gaze OSC to `127.0.0.1:9020`.

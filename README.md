@@ -6,6 +6,8 @@ VRSS Tuner is an experimental Windows tool for configuring NVIDIA VRSS2 and send
 
 **Verified headset:** Pimax Dream Air, with the setup used by the developer. Other headsets and PCs have not been verified. This is an independent project, not an NVIDIA, Pimax, Valve, or VRChat product.
 
+PSVR2 is a [candidate input route](docs/SETUP.md#psvr2-input-route-unverified) through the common provider. The tuner now displays each live gaze-path stage, but VRSS tracking on PSVR2 remains unverified.
+
 The portable package includes the tuner, common gaze provider, OpenVR geometry helper, bilingual instructions, and a read-only setup check. It requires an NVIDIA driver matching the audited driver binaries (610.88 in the verified setup), a VRChat NVIDIA profile with the VRSS allow setting, SteamVR, a gaze source, and MSAA enabled in VRChat. Unsupported driver builds are refused because the provider uses an undocumented driver interface. Passing the setup check does not establish that the foveated region tracks correctly in a headset.
 
 ## Get started

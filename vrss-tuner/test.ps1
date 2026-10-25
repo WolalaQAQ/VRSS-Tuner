@@ -41,6 +41,14 @@ $relayBuild = 'call "' + $vcvars + '" >nul && cl /nologo /std:c++17 /utf-8 /EHsc
 if ($LASTEXITCODE -ne 0) { throw 'Baballonia relay compilation failed.' }
 & $relayExe
 if ($LASTEXITCODE -ne 0) { throw 'Baballonia relay tests failed.' }
+$telemetryExe = Join-Path $here 'build\provider_telemetry_test.exe'
+$telemetryBuild = 'call "' + $vcvars + '" >nul && cl /nologo /std:c++17 /utf-8 /EHsc /O2 /W4 "' +
+    (Join-Path $here 'provider_telemetry_test.cpp') + '" /Fo"' + (Join-Path $here 'build\provider_telemetry_test.obj') +
+    '" /Fe"' + $telemetryExe + '"'
+& cmd.exe /d /c $telemetryBuild
+if ($LASTEXITCODE -ne 0) { throw 'Provider telemetry test compilation failed.' }
+& $telemetryExe
+if ($LASTEXITCODE -ne 0) { throw 'Provider telemetry tests failed.' }
 . (Join-Path $here 'StartupState.ps1')
 $research = Join-Path $fixture 'startup-fixture'
 $tuner = Join-Path $research 'vrss-tuner'

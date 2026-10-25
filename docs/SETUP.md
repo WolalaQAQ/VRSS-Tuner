@@ -19,6 +19,14 @@
 6. Launch VRChat and enable MSAA in its graphics settings. Verify in the headset that a high-quality region appears in both eyes and follows gaze horizontally and vertically. A process log alone is not visual confirmation.
 7. Finish with `Stop-Provider.cmd`. This requests a graceful stop; it does not terminate SteamVR, VRChat, or a vendor provider.
 
+## Live status in the tuner
+
+The Gaze Input tab separately shows OSC reception, relay transmission, common-provider registration, and the result of gaze updates sent to NVIDIA. The left/right dots show **submitted gaze positions**, not the boundary of the high-quality region. Green NVIDIA gaze means a VR consumer was present and the gaze update API returned success. Verify actual VRSS rendering and alignment in the headset. The Pimax official path exposes no equivalent telemetry to the tuner, so only its process state is shown.
+
+## PSVR2 input route (unverified)
+
+PSVR2 is a headset/input source, not a calibration target. The proposed route is **PSVR2Toolkit → Baballonia OSC → Tuner → common provider → NVIDIA**. Choose **Common provider** as the calibration target, not the Pimax path. Check in the tuner's live view that left/right `LeftEyeX/LeftEyeY/RightEyeX/RightEyeY` values reach port 9020, then calibrate the Y sign, gain, and per-eye position on the actual PSVR2. The common route treats UDP coordinates as calibrated; OpenVR projection geometry does not automatically correct gaze placement. PSVR2 gaze input, provider registration, and a moving VRChat region have **not yet been verified**. Sony's official PC connection does not expose eye tracking; if using the unofficial [PSVR2Toolkit installation guide](https://github.com/BnuuySolutions/PSVR2Toolkit/wiki/Installation), review its prerequisites and restrictions first. This package does not include Toolkit binaries or code.
+
 ## Position calibration
 
 The bundled `common-vrss-provider/calibration.txt` starts with zero per-eye offsets and horizontal/vertical gain 1. Adjust these using the tuner's gaze controls while watching a suitable high-contrast scene in the headset. Keep your head as still as practical when comparing gaze movement and the rendered region. The initial values are generic and are **not** a Dream Air calibration preset.

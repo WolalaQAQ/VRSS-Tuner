@@ -4,6 +4,8 @@ WindowsのNVIDIA VRSS2設定と視線入力を扱う試験版です。日本語�
 
 **実機確認済みHMDはPimax Dream Airのみ**です（GeForce RTX 5090／NVIDIAドライバー610.88の開発環境）。ほかのHMDやPCは未検証です。[詳細な日本語ガイド](https://github.com/challenger0303/VRSS-Tuner/blob/main/docs/SETUP.ja.md)も参照してください。
 
+「視線入力」タブは受信→転送→共通プロバイダー→NVIDIA視線更新の状態を表示します。左右の点は送信位置であり、高画質領域ではありません。PSVR2はPSVR2Toolkit/Baballoniaを使う共通経路の入力候補ですが、実機動作は未検証です。
+
 ## 初回の使い方
 
 1. NVIDIA GPU、VRChat、SteamVR、視線データを出せるソフトを用意します。Baballoniaを使う場合は、左右の視線OSCを `127.0.0.1:9020` に送る設定にします。
