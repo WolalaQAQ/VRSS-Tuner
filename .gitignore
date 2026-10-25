@@ -1,0 +1,11 @@
+/vrss-tuner/build/
+/vrss-tuner/release/
+/vrss-tuner/*.exe
+/common-vrss-provider/*.exe
+/common-vrss-provider/*.obj
+*.pdb
+*.log
+*.csv
+*.zip
+*.ini
+!/.github/**
