@@ -6,6 +6,9 @@ int main() {
     language::english = true;
     if (language::Text(L"視線補正") != L"Gaze calibration") return 2;
     if (language::Text(L"視線補正を反映") != L"Apply calibration") return 7;
+    if (language::Text(L"0.1度刻み（-5～+5）") != L"0.1° steps (-5 to +5)") return 14;
+    if (language::Text(L"左右の角度は-5～+5度で指定してください。") !=
+        L"Use an eye offset from -5° to +5°.") return 15;
     if (language::Text(L"色計算：1.15倍（＋15.0%）") != L"Pixel work: 1.15x (+15.0%)") return 8;
     if (language::Text(L"● 要再起動 = 対象アプリのみ。保存時に確認します。") !=
         L"● Restart required for the target app. You will be asked before saving.") return 3;

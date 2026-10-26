@@ -130,6 +130,7 @@ inline std::wstring Text(std::wstring value) {
         {L"両目", L"both eyes"}, {L"（保持）", L" (retained)"},
         {L"領域は1～100、縦横比は0.5～2の数値を指定してください。", L"Use area 1–100 and aspect ratio 0.5–2."},
         {L"倍率は0.1～2、左右の角度は-5～+5度で指定してください。", L"Use gain 0.1–2 and eye offsets -5° to +5°."},
+        {L"左右の角度は-5～+5度で指定してください。", L"Use an eye offset from -5° to +5°."},
         {L"設定は保存されましたが、次回起動用の記録を更新できませんでした。", L"Settings were saved, but the startup record could not be updated."},
         {L"補正は保存されましたが、次回起動用の記録を更新できませんでした。", L"Calibration was saved, but the startup record could not be updated."},
         {L"保存できませんでした。エラー番号: ", L"Could not save. Error: "},
@@ -247,6 +248,7 @@ inline std::wstring Text(std::wstring value) {
         {L"オフ", L"Off"}, {L"オン", L"On"},
         {L"左目", L"Left eye"}, {L"右目", L"Right eye"},
         {L"度（-5～+5）", L"degrees (-5 to +5)"},
+        {L"0.1度刻み（-5～+5）", L"0.1° steps (-5 to +5)"},
         {L"0.1～2", L"0.1–2"}, {L"0.5～2", L"0.5–2"},
         {L"VRSS Tuner / 読取専用", L"VRSS Tuner / read only"},
     };

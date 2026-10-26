@@ -6,6 +6,7 @@
 #include <commctrl.h>
 #include <tlhelp32.h>
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <cmath>
@@ -444,7 +445,8 @@ int gazeCommand(int argc, wchar_t** argv, bool restore) {
 enum ControlId {
     kRefreshButton = 100, kApplyButton, kRestoreButton,
     kModeCombo, kAreaEdit, kAspectCheck, kAspectEdit, kLayoutCombo, kInvertCheck, kStatusEdit,
-    kDriverTab, kGazeTab, kGazeSource, kGazeX, kGazeY, kGazeLeft, kGazeRight, kGazeInvert,
+    kDriverTab, kGazeTab, kGazeSource, kGazeX, kGazeY, kGazeLeft, kGazeRight,
+    kGazeLeftMinus, kGazeLeftPlus, kGazeRightMinus, kGazeRightPlus, kGazeInvert,
     kGazeRefresh, kGazeApply, kGazeRestore, kGazeReset,
     kAreaSlider, kEstimateMsaa, kProfileName, kProfileSave, kProfileSwitch,
     kInputTab, kInputPort, kInputForward, kInputStart, kInputStop, kInputStatus, kPreviewZoom,
@@ -1077,6 +1079,17 @@ bool applyGazeFromUi(bool restore) {
     else if (code == 69) MessageBoxW(gUi.window, L"補正は保存されましたが、次回起動用の記録を更新できませんでした。", L"起動設定の記録", MB_ICONWARNING);
     else if (code != -2) MessageBoxW(gUi.window, (L"補正の保存・復元を完了できませんでした。現在値を再読込しました。\nエラー番号: " + std::to_wstring(code)).c_str(), L"視線補正", MB_ICONERROR);
     return code == 0 || code == 69;
+}
+
+void adjustGazeOffset(HWND edit, int direction) {
+    float value{};
+    if (!parseNumber(getText(edit), value) || value < -5.0f || value > 5.0f) {
+        MessageBoxW(gUi.window, L"左右の角度は-5～+5度で指定してください。", L"入力エラー", MB_ICONWARNING);
+        return;
+    }
+    const double next = std::max(-5.0, std::min(5.0,
+        std::round((static_cast<double>(value) + direction * 0.1) * 1000000.0) / 1000000.0));
+    setText(edit, gazeNumberText(static_cast<float>(next)));
 }
 
 struct NamedProfile {
@@ -1742,10 +1755,14 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
         gUi.gazeInvert = control(L"BUTTON", L"上下方向を反転", BS_AUTOCHECKBOX | WS_TABSTOP, 350, 197, 220, 27, kGazeInvert);
         control(L"STATIC", L"左目の横角度オフセット", SS_LEFT, 20, 245, 180, 24);
         gUi.gazeLeft = control(L"EDIT", L"", WS_BORDER | ES_AUTOHSCROLL | WS_TABSTOP, 205, 241, 115, 27, kGazeLeft);
-        control(L"STATIC", L"度（-5～+5）", SS_LEFT, 335, 245, 200, 24);
+        control(L"BUTTON", L"−", WS_TABSTOP | BS_PUSHBUTTON, 335, 241, 30, 27, kGazeLeftMinus);
+        control(L"BUTTON", L"+", WS_TABSTOP | BS_PUSHBUTTON, 373, 241, 30, 27, kGazeLeftPlus);
+        control(L"STATIC", L"0.1度刻み（-5～+5）", SS_LEFT, 415, 245, 250, 24);
         control(L"STATIC", L"右目の横角度オフセット", SS_LEFT, 20, 290, 180, 24);
         gUi.gazeRight = control(L"EDIT", L"", WS_BORDER | ES_AUTOHSCROLL | WS_TABSTOP, 205, 286, 115, 27, kGazeRight);
-        control(L"STATIC", L"度（-5～+5）", SS_LEFT, 335, 290, 200, 24);
+        control(L"BUTTON", L"−", WS_TABSTOP | BS_PUSHBUTTON, 335, 286, 30, 27, kGazeRightMinus);
+        control(L"BUTTON", L"+", WS_TABSTOP | BS_PUSHBUTTON, 373, 286, 30, 27, kGazeRightPlus);
+        control(L"STATIC", L"0.1度刻み（-5～+5）", SS_LEFT, 415, 290, 250, 24);
         gUi.gazePathNote=control(L"STATIC",L"",SS_LEFT,20,328,650,40);
         gUi.gazeApply = control(L"BUTTON", L"視線補正を反映", WS_TABSTOP | BS_PUSHBUTTON, 20, 386, 150, 32, kGazeApply);
         gUi.gazeRestore = control(L"BUTTON", L"操作を戻す", WS_TABSTOP | BS_PUSHBUTTON, 180, 386, 145, 32, kGazeRestore);
@@ -1855,6 +1872,10 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             case kDriverTab: showPanel(0); return 0;
             case kGazeTab: showPanel(1); return 0;
             case kGazeRefresh: refreshGaze(); return 0;
+            case kGazeLeftMinus: adjustGazeOffset(gUi.gazeLeft, -1); return 0;
+            case kGazeLeftPlus: adjustGazeOffset(gUi.gazeLeft, 1); return 0;
+            case kGazeRightMinus: adjustGazeOffset(gUi.gazeRight, -1); return 0;
+            case kGazeRightPlus: adjustGazeOffset(gUi.gazeRight, 1); return 0;
             case kGazeApply: applyGazeFromUi(false); return 0;
             case kGazeRestore: applyGazeFromUi(true); return 0;
             case kGazeReset:
