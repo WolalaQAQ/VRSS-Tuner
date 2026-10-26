@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <map>
 #include <thread>
+#include <psapi.h>
 #pragma comment(lib,"ws2_32.lib")
 namespace fs=std::filesystem;
 using Clock=std::chrono::steady_clock;
@@ -113,12 +114,51 @@ public:
 };
 struct NvidiaSession {
     ID3D11Device* device=nullptr; ID3D11DeviceContext* context=nullptr; ID3DNvGazeHandler* gaze=nullptr;
-    UnregisterProvider unregisterFn=nullptr;bool registered=false;
+    const driver::Identity* identity=nullptr;
+    UnregisterProvider unregisterFn=nullptr;bool registered=false,initialized=false;
     ~NvidiaSession() {
         if(registered && unregisterFn) std::cout<<"unregister="<<unregisterFn(gaze,context)<<'\n';
-        if(gaze)gaze->Release();if(context)context->Release();if(device)device->Release();NvAPI_Unload();
+        if(gaze)gaze->Release();if(context)context->Release();if(device)device->Release();
+        if(initialized)NvAPI_Unload();
     }
 };
+static void InitializeVerifiedDriver(NvidiaSession& nv) {
+    D3D_FEATURE_LEVEL level{};
+    HRESULT hr=D3D11CreateDevice(nullptr,D3D_DRIVER_TYPE_HARDWARE,nullptr,0,nullptr,0,
+        D3D11_SDK_VERSION,&nv.device,&level,&nv.context);
+    if(FAILED(hr))throw std::runtime_error("D3D initialization failed");
+    const int status=NvAPI_Initialize();
+    if(status)throw std::runtime_error("NVIDIA initialization failed: "+std::to_string(status));
+    nv.initialized=true;
+    const auto api=HashModule(L"nvapi64.dll"),impl=HashModule(L"nvapi64_impl.dll"),
+        umd=HashModule(L"nvwgf2umx.dll");
+    nv.identity=driver::Select(api,impl,umd);
+    if(!nv.identity)throw std::runtime_error("Unsupported driver image: private ABI refused");
+    std::cout<<"driverTarget="<<nv.identity->version<<'\n';
+}
+static void CreateGazeHandler(NvidiaSession& nv,float horizontalFov,float verticalFov) {
+    NV_GAZE_HANDLER_INIT_PARAMS init{};init.version=NV_GAZE_HANDLER_INIT_PARAMS_VER;
+    init.GazeDataDeviceId=0;init.GazeDataType=NV_GAZE_DATA_STEREO;
+    init.fHorizontalFOV=horizontalFov;init.fVericalFOV=verticalFov;init.ppNvGazeHandler=&nv.gaze;
+    const int status=NvAPI_D3D_InitializeNvGazeHandler(nv.device,&init);
+    if(status||!nv.gaze)throw std::runtime_error("Gaze handler initialization failed: "+std::to_string(status));
+}
+static std::array<uintptr_t,8> VerifiedGazeMethods(const NvidiaSession& nv) {
+    const auto module=GetModuleHandleW(nv.identity->module);
+    const auto base=reinterpret_cast<uintptr_t>(module);
+    MODULEINFO image{};
+    uintptr_t table=0;
+    if(!nv.gaze || !GetModuleInformation(GetCurrentProcess(),module,&image,sizeof(image)))
+        throw std::runtime_error("Cannot verify gaze module bounds");
+    std::memcpy(&table,nv.gaze,sizeof(table));
+    if(!driver::TableAddressMatches(*nv.identity,base,image.SizeOfImage,table))
+        throw std::runtime_error("Gaze vtable address mismatch: private calls refused");
+    std::array<uintptr_t,8> methods{};
+    std::memcpy(methods.data(),reinterpret_cast<const void*>(table),sizeof(methods));
+    if(!driver::MethodsMatch(*nv.identity,base,methods))
+        throw std::runtime_error("Gaze vtable method mismatch: private calls refused");
+    return methods;
+}
 struct ConsumerQuery {uint32_t version=0x10028,pad=0;uint64_t count=0,a=0,b=0,c=0;};
 static_assert(sizeof(ConsumerQuery)==40);
 using QueryConsumer=int(__fastcall*)(void*,void*,ConsumerQuery*);
@@ -129,12 +169,7 @@ int wmain(int argc,wchar_t** argv) {
         std::map<std::wstring,std::wstring> args;
         for(int i=1;i+1<argc;i+=2) args[argv[i]]=argv[i+1];
         if(args.count(L"--driver-check-only") && args.at(L"--driver-check-only")==L"1") {
-            NvidiaSession nv;D3D_FEATURE_LEVEL level{};
-            HRESULT hr=D3D11CreateDevice(nullptr,D3D_DRIVER_TYPE_HARDWARE,nullptr,0,nullptr,0,D3D11_SDK_VERSION,&nv.device,&level,&nv.context);
-            if(FAILED(hr)||NvAPI_Initialize()!=0)throw std::runtime_error("NVIDIA/D3D initialization failed");
-            if(HashModule(L"nvapi64_impl.dll")!="df6455ccf83e43cfe68f405af1eec4e053c7f95da998bf358053b7583980c2f4" ||
-               HashModule(L"nvwgf2umx.dll")!="04c01cfc849e5b58ad50da89dc83bff15f15847684de7964ff5900fedfab18fe")
-                throw std::runtime_error("Unsupported driver image: private ABI refused");
+            NvidiaSession nv;InitializeVerifiedDriver(nv);
             std::cout<<"DRIVER_CHECK_PASS exact audited images\n";
             return 0;
         }
@@ -159,24 +194,12 @@ int wmain(int argc,wchar_t** argv) {
         fs::create_directories(output);
         std::ofstream csv(output/"gaze.csv");
         csv<<"qpc,sourceSequence,fresh,ageSeconds,consumerCount,queryStatus,submitted,submitStatus,leftX,leftY,rightX,rightY\n";
-        PrintToken();NvidiaSession nv;D3D_FEATURE_LEVEL level{};
-        HRESULT hr=D3D11CreateDevice(nullptr,D3D_DRIVER_TYPE_HARDWARE,nullptr,0,nullptr,0,D3D11_SDK_VERSION,&nv.device,&level,&nv.context);
-        if(FAILED(hr)||NvAPI_Initialize()!=0)throw std::runtime_error("NVIDIA/D3D initialization failed");
-        NV_GAZE_HANDLER_INIT_PARAMS init{};init.version=NV_GAZE_HANDLER_INIT_PARAMS_VER;
-        init.GazeDataDeviceId=0;init.GazeDataType=NV_GAZE_DATA_STEREO;
+        PrintToken();NvidiaSession nv;InitializeVerifiedDriver(nv);
         const auto& p=eyes[0].projection;
-        init.fHorizontalFOV=float((std::atan(-p[0])+std::atan(p[1]))*180/3.141592653589793);
-        init.fVericalFOV=float((std::atan(-p[2])+std::atan(p[3]))*180/3.141592653589793);
-        init.ppNvGazeHandler=&nv.gaze;
-        int status=NvAPI_D3D_InitializeNvGazeHandler(nv.device,&init);
-        if(status||!nv.gaze)throw std::runtime_error("Gaze handler initialization failed");
-        if(HashModule(L"nvapi64_impl.dll")!="df6455ccf83e43cfe68f405af1eec4e053c7f95da998bf358053b7583980c2f4" ||
-           HashModule(L"nvwgf2umx.dll")!="04c01cfc849e5b58ad50da89dc83bff15f15847684de7964ff5900fedfab18fe")
-            throw std::runtime_error("Unsupported driver image: private ABI refused");
-        auto table=*reinterpret_cast<uintptr_t**>(nv.gaze);
-        const auto base=reinterpret_cast<uintptr_t>(GetModuleHandleW(L"nvapi64_impl.dll"));
-        const std::array<uintptr_t,8> expected={0x2fcc80,0x328040,0x3280a0,0x327440,0x327bd0,0x326b80,0x3272e0,0x325f70};
-        for(size_t i=0;i<8;++i)if(table[i]!=base+expected[i])throw std::runtime_error("Private vtable mismatch");
+        CreateGazeHandler(nv,float((std::atan(-p[0])+std::atan(p[1]))*180/3.141592653589793),
+            float((std::atan(-p[2])+std::atan(p[3]))*180/3.141592653589793));
+        const auto table=VerifiedGazeMethods(nv);
+        int status=0;
         Challenge challenge{};auto get=reinterpret_cast<GetChallenge>(table[3]);
         status=get(nv.gaze,nv.context,&challenge);if(status)throw std::runtime_error("Challenge failed");
         Registration request{};request.vendor=vendor;request.product=product;

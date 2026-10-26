@@ -3,6 +3,7 @@ $here = $PSScriptRoot
 . (Join-Path $here 'Find-Vcvars.ps1')
 $vcvars = Find-Vcvars64
 New-Item -ItemType Directory -Path (Join-Path $here 'build') -Force | Out-Null
+& (Join-Path (Split-Path -Parent $here) 'common-vrss-provider\test-driver-identity.ps1')
 $exe = Join-Path $here 'build\gaze_settings_test.exe'
 $line = 'call "' + $vcvars + '" >nul && cl /nologo /std:c++17 /utf-8 /EHsc /O2 /W4 /DUNICODE /D_UNICODE "' +
     (Join-Path $here 'gaze_settings_test.cpp') + '" /Fo"' + (Join-Path $here 'build\gaze_settings_test.obj') +

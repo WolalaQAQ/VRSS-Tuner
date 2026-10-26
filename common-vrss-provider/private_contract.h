@@ -14,14 +14,13 @@
 #include <string>
 #include <vector>
 #include "nvapi.h"
+#include "driver_identity.h"
 #pragma comment(lib, "advapi32.lib")
 #pragma comment(lib, "crypt32.lib")
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "nvapi64.lib")
 
-// An independent, unsigned owned-process probe. No Pimax SDK, camera access,
-// service installation, real HMD registration, or game injection is used.
-// Private ABI calls are limited to the two exact, previously audited images.
+// Private calls require an exact audited image pair and method table.
 struct Challenge { uint32_t version = 0x10014; uint8_t bytes[16]{}; };
 struct Registration {
     uint32_t version = 0x10020;
