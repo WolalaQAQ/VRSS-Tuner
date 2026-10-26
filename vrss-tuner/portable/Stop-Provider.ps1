@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $data = Join-Path $env:LOCALAPPDATA 'VRSS Tuner'
 $record = Join-Path $data 'active-run.txt'
 if (-not (Test-Path -LiteralPath $record)) { throw 'No active run recorded' }

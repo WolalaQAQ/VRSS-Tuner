@@ -1,4 +1,4 @@
-param([ValidateSet('Baballonia','PSVR2Toolkit','SRanibro','ViveProEye','ViveStreaming','SteamVREye','Varjo')][string]$InputRoute='Baballonia',
+﻿param([ValidateSet('Baballonia','PSVR2Toolkit','SRanibro','ViveProEye','ViveStreaming','SteamVREye','Varjo')][string]$InputRoute='Baballonia',
       [switch]$Worker,[string]$RunDirectory)
 $ErrorActionPreference = 'Stop'
 $bundle = $PSScriptRoot

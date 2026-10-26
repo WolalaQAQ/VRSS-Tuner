@@ -34,6 +34,18 @@ try {
     foreach ($name in $required) {
         if ($name -notin @($listed.path)) { throw "Release ZIP missing required component: $name" }
     }
+    foreach ($name in @($listed.path | Where-Object { $_ -like '*.ps1' })) {
+        $scriptEntry = $archive.GetEntry($root + $name)
+        if (-not $scriptEntry) { throw "Release ZIP missing script: $name" }
+        $scriptStream = $scriptEntry.Open()
+        try {
+            $prefix = [byte[]]::new(3)
+            $count = $scriptStream.Read($prefix, 0, 3)
+            if ($count -ne 3 -or $prefix[0] -ne 239 -or $prefix[1] -ne 187 -or $prefix[2] -ne 191) {
+                throw "Windows PowerShell script is missing UTF-8 BOM: $name"
+            }
+        } finally { $scriptStream.Dispose() }
+    }
     $actual = @($archive.Entries | Where-Object { $_.Name })
     if ($actual.Count -ne $listed.Count + 1) { throw 'ZIP entry count does not match its manifest.' }
     if (@($listed.path | Select-Object -Unique).Count -ne $listed.Count) { throw 'Duplicate manifest paths.' }

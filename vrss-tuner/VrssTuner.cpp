@@ -531,6 +531,19 @@ int localizedMessageBox(HWND owner, const wchar_t* message, const wchar_t* title
     const auto caption = language::Text(title ? title : L"");
     return ::MessageBoxW(owner, body.c_str(), caption.c_str(), flags);
 }
+std::wstring frameLaunchError(const std::string& error) {
+    if (language::english) return {error.begin(), error.end()};
+    if (error == "Close VRChat and Unity before launching")
+        return L"起動前にVRChatとUnityを終了してください。";
+    if (error == "The current Frame session is not ready for a game launch")
+        return L"Steam Frameの接続準備が完了していません。視線の状態を確認してください。";
+    if (error == "Start the Tuner UI without administrator privileges before launching VRChat")
+        return L"Tunerを管理者権限なしで起動し直してから、VRChatを起動してください。";
+    if (error == "The installed VRChat EAC launcher could not be verified" ||
+        error == "Steam App 438100 installation is not registered in Windows")
+        return L"VRChatのインストール先を確認できません。SteamでVRChatの導入状態を確認してください。";
+    return L"VRChatを起動できませんでした。Steam Frameの接続状態と実行ログを確認してください。";
+}
 #define MessageBoxW localizedMessageBox
 std::wstring getText(HWND target) {
     wchar_t buffer[4096]{};
@@ -558,7 +571,7 @@ void applyLanguage() {
         SendMessageW(gUi.gazeSource,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(translated.c_str()));
     }
     SendMessageW(gUi.gazeSource,CB_SETCURSEL,source,0);
-    for (HWND handle : {gUi.status, gUi.gazeStatus, gUi.inputStatus,gUi.frameStatus,gUi.gazeSourceLabel,gUi.gazePathNote,gUi.sourceNote,
+    for (HWND handle : {gUi.status, gUi.gazeStatus, gUi.inputStatus,gUi.inputStart,gUi.frameStatus,gUi.gazeSourceLabel,gUi.gazePathNote,gUi.sourceNote,
                         gUi.regionArea, gUi.regionCost, gUi.regionNote, gUi.installInfo}) {
         auto found = gOriginalText.find(handle);
         if (found != gOriginalText.end()) {
@@ -567,6 +580,7 @@ void applyLanguage() {
         }
     }
     InvalidateRect(gUi.regionPreview, nullptr, TRUE);
+    InvalidateRect(gUi.liveMonitor, nullptr, TRUE);
 }
 bool isChecked(HWND target) { return SendMessageW(target, BM_GETCHECK, 0, 0) == BST_CHECKED; }
 void check(HWND target, bool on) { SendMessageW(target, BM_SETCHECK, on ? BST_CHECKED : BST_UNCHECKED, 0); }
@@ -1058,7 +1072,7 @@ bool applyGazeFromUi(bool restore) {
     gBusy = false;
     refreshGaze();
     if (code == 0) {
-        setText(gUi.gazeStatus, getText(gUi.gazeStatus) + L"\r\n補正を保存・読戻し済み。VRChatの再起動は不要です。");
+        setText(gUi.gazeStatus, gOriginalText[gUi.gazeStatus] + L"\r\n補正を保存・読戻し済み。VRChatの再起動は不要です。");
     } else if (code == 61) MessageBoxW(gUi.window, L"読込後に補正が別の操作で変更されています。現在値を読み直しました。内容を確認してから再度操作してください。", L"変更の競合", MB_ICONWARNING);
     else if (code == 69) MessageBoxW(gUi.window, L"補正は保存されましたが、次回起動用の記録を更新できませんでした。", L"起動設定の記録", MB_ICONWARNING);
     else if (code != -2) MessageBoxW(gUi.window, (L"補正の保存・復元を完了できませんでした。現在値を再読込しました。\nエラー番号: " + std::to_wstring(code)).c_str(), L"視線補正", MB_ICONERROR);
@@ -1856,7 +1870,10 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                     if(vrchatRunning() || processCount(L"Unity.exe"))
                         throw std::runtime_error("Close VRChat and Unity before launching");
                     gFrameRuntime.LaunchGame(window);
-                } catch(const std::exception& e) {MessageBoxA(window,e.what(),"Frame launch stopped",MB_ICONWARNING);}
+                } catch(const std::exception& e) {
+                    const auto detail = frameLaunchError(e.what());
+                    ::MessageBoxW(window, detail.c_str(), language::english ? L"Frame launch stopped" : L"Frameでの起動を中止しました", MB_ICONWARNING);
+                }
                 updateFrameStatus();return 0;
             case kInputStart:
                 if (gSelectedSource.load()==0) {

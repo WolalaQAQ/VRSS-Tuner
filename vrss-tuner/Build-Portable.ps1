@@ -83,6 +83,13 @@ if (Test-Path -LiteralPath $pimaxBuilt -PathType Leaf) {
 foreach ($name in @('Audit-Driver.ps1','Test-Setup.ps1','Start-Provider.ps1','Stop-Provider.ps1','Start-VRChat-Candidate.ps1','Audit-Driver.cmd','Test-Setup.cmd','Start-Provider.cmd','Stop-Provider.cmd','Start-VRChat-Candidate.cmd','Start-PSVR2-Toolkit.cmd','Start-SRanibro.cmd','Start-Vive-Pro-Eye.cmd','Start-Vive-Streaming.cmd','Start-SteamVR-Eye.cmd','Start-Varjo.cmd')) {
     Copy-Item -LiteralPath (Join-Path $here "portable\$name") -Destination (Join-Path $bundle $name)
 }
+# The .cmd launchers use Windows PowerShell 5.1, which reads UTF-8 scripts
+# without a BOM as the legacy ANSI code page. Normalize every shipped script.
+foreach ($name in @('Audit-Driver.ps1','Test-Setup.ps1','Start-Provider.ps1','Stop-Provider.ps1','Start-VRChat-Candidate.ps1')) {
+    $path = Join-Path $bundle $name
+    $source = [IO.File]::ReadAllText($path, [Text.UTF8Encoding]::new($false, $true))
+    [IO.File]::WriteAllText($path, $source, [Text.UTF8Encoding]::new($true))
+}
 Copy-Item -LiteralPath (Join-Path $here 'portable\README.md') -Destination (Join-Path $bundle 'README.md')
 Copy-Item -LiteralPath (Join-Path $here 'portable\README.en.md') -Destination (Join-Path $bundle 'README.en.md')
 foreach ($name in @('STEAM-FRAME.md','DRIVER-CONTRACTS.md')) {

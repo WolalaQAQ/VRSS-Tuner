@@ -6,10 +6,19 @@
 namespace language {
 inline bool english = false;
 
-// Japanese is the source language. Replace longer phrases before their parts.
+// Japanese is the source language. Match the longest source phrase at each
+// position so shorter labels cannot split a longer status message.
 inline std::wstring Text(std::wstring value) {
     if (!english) return value;
     static const std::pair<const wchar_t*, const wchar_t*> replacements[] = {
+        {L"Pimax経路が現在動作中です。共通経路のプロファイルは適用できません。\n", L"The Pimax path is running. A common-path profile cannot be applied.\n"},
+        {L"共通プロバイダーが現在動作中です。Pimax経路のプロファイルは適用できません。\n", L"The common provider is running. A Pimax-path profile cannot be applied.\n"},
+        {L"共通経路へ切り替える場合は、先にVRChatとPimax側プロバイダーを通常終了してください。", L"To switch to the common path, close VRChat and the Pimax provider normally first."},
+        {L"先に共通プロバイダーを停止してください。", L"Stop the common provider first."},
+        {L"プロファイルは適用されましたが、次回起動用の選択を保存できませんでした。", L"The profile was applied, but its selection could not be saved for the next launch."},
+        {L"視線入力元の選択を次回起動用に保存できませんでした。", L"The gaze-source selection could not be saved for the next launch."},
+        {L"TunerのOSC転送は使用しません。", L"Tuner OSC forwarding is not used."},
+        {L"SteamVR視線アクション", L"SteamVR eye action"},
         {L"VRレイアウト4を使用。上下補正はFrame入力に内蔵しています。\r\n追加の補正は共通プロバイダーで調整できます。\r\n終了時に一時設定を復元します。ゲームは強制終了しません。",L"Use VR layout 4. Frame input includes vertical conversion.\r\nAdditional gains use Common provider calibration.\r\nTemporary settings are restored on exit. Games are never terminated."},
         {L"登録済み・視線取得中です。「VRChatを起動（Frame用）」から起動してください。受信側の接続と描画効果はまだ未確認です。",L"Registered with live gaze. Use Launch VRChat (Frame). Consumer connection and rendering are not yet verified."},
         {L"ゲーム起動を要求しましたが、Tuner内の環境変数復元に失敗しました。重複起動せずTunerを終了してください。",L"Game launch requested, but restoring launch-only environment failed. Exit Tuner; do not launch again."},
@@ -240,14 +249,25 @@ inline std::wstring Text(std::wstring value) {
         {L"0.1～2", L"0.1–2"}, {L"0.5～2", L"0.5–2"},
         {L"VRSS Tuner / 読取専用", L"VRSS Tuner / read only"},
     };
-    for (const auto& [from, to] : replacements) {
-        size_t pos = 0;
-        const std::wstring needle(from);
-        while ((pos = value.find(needle, pos)) != std::wstring::npos) {
-            value.replace(pos, needle.size(), to);
-            pos += std::wcslen(to);
+    std::wstring translated;
+    translated.reserve(value.size());
+    for (size_t pos = 0; pos < value.size();) {
+        const wchar_t* best = nullptr;
+        size_t bestLength = 0;
+        for (const auto& [from, to] : replacements) {
+            const size_t length = std::wcslen(from);
+            if (length > bestLength && value.compare(pos, length, from) == 0) {
+                best = to;
+                bestLength = length;
+            }
+        }
+        if (best) {
+            translated += best;
+            pos += bestLength;
+        } else {
+            translated += value[pos++];
         }
     }
-    return value;
+    return translated;
 }
 }
