@@ -36,8 +36,11 @@ static std::string Utf8(const std::wstring& value) {
 }
 
 static int Configure(bool enable) {
-    auto manifest=Bundle()/L"vrss-tuner.vrmanifest";
+    const auto manifest=Bundle()/L"vrss-tuner.vrmanifest";
     if(!fs::is_regular_file(manifest))return 10;
+    // VR_Init can launch a runtime on its own. Registration must never choose
+    // a SteamVR startup route on behalf of the user.
+    if(!Running(L"vrserver.exe"))return 16;
     vr::EVRInitError init=vr::VRInitError_None;
     vr::VR_Init(&init,vr::VRApplication_Utility);
     if(init!=vr::VRInitError_None)return 11;
@@ -46,13 +49,15 @@ static int Configure(bool enable) {
     const auto path=Utf8(manifest.wstring());
     const auto result=enable?apps->AddApplicationManifest(path.c_str(),false):
         apps->SetApplicationAutoLaunch(kAppKey,false);
-    if(result!=vr::VRApplicationError_None){
+    if(result!=vr::VRApplicationError_None &&
+       !( !enable && result==vr::VRApplicationError_UnknownApplication )){
         std::cerr<<apps->GetApplicationsErrorNameFromEnum(result)<<'\n';
         vr::VR_Shutdown();return 13;
     }
     const auto setting=enable?apps->SetApplicationAutoLaunch(kAppKey,true):
         apps->RemoveApplicationManifest(path.c_str());
-    if(setting!=vr::VRApplicationError_None){
+    if(setting!=vr::VRApplicationError_None &&
+       !( !enable && setting==vr::VRApplicationError_UnknownApplication )){
         std::cerr<<apps->GetApplicationsErrorNameFromEnum(setting)<<'\n';
         vr::VR_Shutdown();return 14;
     }
@@ -88,6 +93,6 @@ int wmain(int argc,wchar_t** argv) {
         L"ViveProEye",L"ViveStreaming",L"SteamVREye",L"Varjo"};
     const auto launcher=bundle/L"Start-Provider-Only.cmd";
     if(!fs::is_regular_file(launcher))return 7;
-    const std::wstring arguments=std::wstring(routes[source])+L" wait";
+    const std::wstring arguments=std::wstring(routes[source])+L" wait existing-steamvr";
     return reinterpret_cast<INT_PTR>(ShellExecuteW(nullptr,L"open",launcher.c_str(),arguments.c_str(),bundle.c_str(),SW_SHOWNORMAL))>32?0:8;
 }

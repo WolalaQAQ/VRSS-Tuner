@@ -12,7 +12,7 @@ NVIDIA VRSS2の設定と視線入力を扱うWindows用の試験版です。ZIP�
 4. **その他の視線入力**なら、HMDと視線ソフトを起動し、TunerでVRSSをオンにして入力元を選び、「共通経路＋VRChatを起動」を押します。VRChatが動作中なら後付け接続を先に試し、NVIDIAの受信側が見つからない場合だけ通常終了・再起動します。必要ならSteamVRも起動します。Windowsの管理者確認だけは手動で承認してください。
 5. VRChatのグラフィック設定でMSAAを有効にし、HMD内で両目の高画質領域が視線に追従するか確認します。Tunerの緑の表示だけでは画質の変化は確認できません。
 
-VRChatを後から自分で起動したいときは「視線経路だけ起動」を押します。固定ID構成では`Start-VRChat-HMD-Key.cmd`で後から起動するか、`Install-Steam-Launch-Bridge.cmd`の案内に従ってSteamのVRChat起動オプションを一度設定してください。さらに`Install-SteamVR-Autostart.cmd`を設定すると、次回以降SteamVRがTunerと選択中の共通視線経路を起動します。SteamVRの再起動後に再度インストールコマンドが必要な場合があります。HMDと視線ソフトを準備し、管理者確認が出たら承認してください。VRChatを起動する前にTunerでプロバイダー稼働を確認します。解除は`Remove-SteamVR-Autostart.cmd`です。Steam起動ブリッジとSteamVR自動起動は実機未検証です。
+VRChatを後から自分で起動したいときは「視線経路だけ起動」を押します。固定ID構成では`Start-VRChat-HMD-Key.cmd`で後から起動するか、`Install-Steam-Launch-Bridge.cmd`の案内に従ってSteamのVRChat起動オプションを一度設定してください。通常起動ブリッジはVRChat起動時にHMDを照合し、固定IDの構成ではプロバイダーがまだ起動途中でもIDを予約します。後から視線経路を再接続できます。SteamVRとの同時起動にはインストーラー版を使ってください。インストーラーはSteamVRを起動せず、Steamから既に起動している場合だけ自動起動登録を行います。管理者確認が出たら手動で承認してください。
 
 他のPCや未検証HMDでの動作は保証していません。共通経路では監査済みドライバー実体と、VRSSを許可するNVIDIAのVRChatプロファイルが必要です。診断が失敗した場合は、その理由を確認してください。
 
@@ -45,7 +45,7 @@ Frameでは旧来のEDID診断やStart-Providerを使わず、[Frame専用手順
 
 監査済みNVIDIA HMDテスト経路が有効な共通プロバイダーでは、`Test-Setup.cmd`は接続用の固定キー`0xFEEE:0x0001`を使います。これは物理EDIDではなく、プロバイダーとVRChatを一致させるためだけの値です。投影情報は接続中HMDから別途取得し、HMDごとの視線補正も必要です。EDIDやシリアル番号がなくても投影情報を読めれば、IDの段階では停止しません。`Start-VRChat-HMD-Key.cmd`は起動時に同じキーを渡します。旧`Start-VRChat-Candidate.cmd`も互換入口として残しています。通常はTunerの一括起動ボタンが自動で選びます。Steam Frameは専用経路を使います。
 
-通常のSteam起動でIDを渡す試験には`Install-Steam-Launch-Bridge.cmd`を一度実行し、表示された起動オプションをSteamの「VRChat → プロパティ → 一般 → 起動オプション」に設定します。共通プロバイダーが起動中で選択中のときだけ、ラッパーが登録済みIDをVRChatの子プロセスへ渡します。停止中は元の起動コマンドをそのまま実行します。現段階ではTunerやプロバイダーの自動起動と、Steam起動での保護付き実機動作は未検証です。
+通常のSteam起動でIDを渡すには、インストール先の`Install-Steam-Launch-Bridge.cmd`を一度実行し、表示された起動オプションをSteamの「VRChat → プロパティ → 一般 → 起動オプション」に設定します。選択中の共通経路とHMDの識別情報を起動時に照合します。固定IDの場合は視線プロバイダーの起動前でもIDを予約でき、後から再接続できます。Pimax純正経路ではブリッジは通常起動をそのまま渡します。SteamVRの自動起動登録と保護付きVRChatでの固定IDは開発者のPCで確認しましたが、インストーラー後のSteamVR再起動と他のPCは未確認です。
 
 手動実験には従来どおり`VRSS_HMD_ID_CANDIDATE`に十進数の`vendor:product`を指定できます。この場合は`candidate-manual`と表示され、VRChat起動時にも同じ環境変数が必要です。固定キーや手動候補IDは、他のHMDでVRSS2が動く保証ではありません。`consumerCount`、新しい視線の受理、HMD内のForce/Off画質差を順に確認してください。同じ固定キーの共通プロバイダーを複数同時には起動しません。
 

@@ -18,9 +18,11 @@ Use the [Frame-specific instructions](docs/STEAM-FRAME.md), not the legacy EDID 
 
 ## Get started
 
-1. Download the ZIP from [Releases](https://github.com/challenger0303/VRSS-Tuner/releases) and extract it to a writable folder.
+1. Download the Windows installer from [Releases](https://github.com/challenger0303/VRSS-Tuner/releases). It installs per-user to a fixed location and registers SteamVR autostart if SteamVR is already running. It never launches SteamVR itself. A portable ZIP remains available for manual testing.
 2. For the standard route, connect the HMD, start SteamVR, leave VRChat closed, and run `Test-Setup.cmd`. For Steam Frame, follow the Frame-specific guide above.
 3. Follow the [setup guide](docs/SETUP.md) to enable VRSS, start the provider and gaze relay, then launch VRChat with MSAA enabled.
+
+To use Steam's normal VRChat Play button with a fixed HMD ID, set the launch option shown by `Install-Steam-Launch-Bridge.cmd` once. The installer copies that bridge to a stable location. The installed SteamVR registration and protected VRChat launch were checked on the developer's PC; a fresh SteamVR restart after installing this candidate and other PCs remain unverified.
 
 If the check reports an unsupported driver or missing VRSS allow setting, do not force the provider to start. Open an issue with the diagnostic output, driver version, and HMD model; remove personally identifying information first.
 

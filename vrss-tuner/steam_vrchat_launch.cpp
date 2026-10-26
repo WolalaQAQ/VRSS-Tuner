@@ -94,12 +94,11 @@ static Identity CurrentIdentity(const fs::path& data) {
     auto source=saved.find("identitySource");
     if(source!=saved.end() && source->second=="tuner-session") {
         auto fingerprint=saved.find("identityFingerprint");
-        if(fingerprint!=saved.end()) {
-            std::ostringstream current;current<<std::hex<<std::setw(16)<<std::setfill('0')
-                                             <<candidate.fingerprint;
-            if(!candidate.valid || current.str()!=fingerprint->second)
-                return {0,0,"hmd-fingerprint-changed"};
-        }
+        if(fingerprint==saved.end())return {0,0,"hmd-fingerprint-missing"};
+        std::ostringstream current;current<<std::hex<<std::setw(16)<<std::setfill('0')
+                                         <<candidate.fingerprint;
+        if(!candidate.valid || current.str()!=fingerprint->second)
+            return {0,0,"hmd-fingerprint-changed"};
         return {hmd_identity::kCandidateVendor,hmd_identity::kCommonSessionProduct,
                 "tuner-session"};
     }
@@ -164,18 +163,26 @@ int wmain(int argc,wchar_t** argv) {
     for(int i=2;i<argc;++i){command.push_back(L' ');command+=Quote(argv[i]);}
     auto data=LocalData();
     bool keyed=false;
-    if(Running(L"common_vrss_provider.exe") && CommonSourceSelected(data)) {
+    if(CommonSourceSelected(data)) {
         auto identity=CurrentIdentity(data);
-        if(identity.vendor && identity.product && ActiveProviderMatches(data,identity)) {
+        const bool providerRunning=Running(L"common_vrss_provider.exe");
+        const bool providerMatches=providerRunning && ActiveProviderMatches(data,identity);
+        // A fixed session ID is chosen before VRChat starts. Once the HMD
+        // fingerprint matches, the gaze provider can attach later without a
+        // second game launch. Never reserve an arbitrary EDID this way.
+        const bool reserved=(!providerRunning && identity.reason=="tuner-session");
+        if(identity.vendor && identity.product && (providerMatches || reserved)) {
             std::wostringstream vendor,product;
             vendor<<L"0x"<<std::hex<<std::uppercase<<identity.vendor;
             product<<L"0x"<<std::hex<<std::uppercase<<identity.product;
             keyed=SetEnvironmentVariableW(L"TEST_VENDOR_ID",vendor.str().c_str()) &&
                   SetEnvironmentVariableW(L"TEST_PRODUCT_ID",product.str().c_str());
             Log(data,identity.reason+" vendor="+std::to_string(identity.vendor)+
-                " product="+std::to_string(identity.product)+(keyed?" applied":" set-failed"));
+                " product="+std::to_string(identity.product)+
+                (reserved?" reserved-before-provider":" provider-ready")+
+                (keyed?" applied":" set-failed"));
         }else Log(data,identity.reason+" or provider-identity-mismatch passthrough");
-    }else Log(data,"common-provider-inactive-or-native-path passthrough");
+    }else Log(data,"native-path passthrough");
     STARTUPINFOW startup{};startup.cb=sizeof(startup);
     PROCESS_INFORMATION child{};
     std::vector<wchar_t> mutableCommand(command.begin(),command.end());mutableCommand.push_back(0);

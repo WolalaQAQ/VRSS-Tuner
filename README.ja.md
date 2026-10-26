@@ -16,9 +16,11 @@ Frameでは旧来のEDID診断やStart-Providerを使わず、[Frame専用手順
 
 ## 使い始める
 
-1. [Releases](https://github.com/challenger0303/VRSS-Tuner/releases)からZIPを取得し、書き込み可能なフォルダーへ展開します。
+1. [Releases](https://github.com/challenger0303/VRSS-Tuner/releases)からWindowsインストーラーを取得します。ユーザー用の固定場所に配置し、SteamVRが既に起動していれば自動起動を登録します。インストーラー自身はSteamVRを起動しません。手動検証用のポータブルZIPも残します。
 2. 標準経路ではHMDを接続し、SteamVRを起動してVRChatを閉じた状態で`Test-Setup.cmd`を実行します。Steam Frameでは上記の専用手順を使います。
 3. [日本語セットアップガイド](docs/SETUP.ja.md)に沿ってVRSSと視線プロバイダーを起動し、VRChat内のMSAAを有効にします。
+
+固定HMD IDをSteamの通常のVRChat起動で渡す場合は、`Install-Steam-Launch-Bridge.cmd`が示す起動オプションを一度設定します。インストーラーはブリッジを固定場所に配置します。このPCでは登録と保護付きVRChatの起動を確認しましたが、今回のインストーラー導入後のSteamVR再起動と他のPCは未確認です。
 
 ドライバー非対応やVRSS許可設定の不足が表示された場合、強制起動しないでください。診断結果、ドライバー版、HMD機種を添えてIssueへ報告できます。個人情報は投稿前に削除してください。
 

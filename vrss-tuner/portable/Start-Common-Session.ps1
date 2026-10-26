@@ -1,7 +1,7 @@
 param([ValidateSet('Baballonia','PSVR2Toolkit','SRanibro','ViveProEye','ViveStreaming','SteamVREye','Varjo')]
       [string]$InputRoute='Baballonia',
       [ValidateRange(0,30)][int]$HotAttachWaitSeconds=8,
-      [switch]$ProviderOnly,[switch]$WaitForHeadset)
+      [switch]$ProviderOnly,[switch]$WaitForHeadset,[switch]$RequireExistingSteamVR)
 $ErrorActionPreference = 'Stop'
 $bundle = $PSScriptRoot
 $gameWasRunning = [bool](Get-Process VRChat -ErrorAction SilentlyContinue)
@@ -62,6 +62,7 @@ try {
         }
     }
     if (-not (Get-Process vrserver -ErrorAction SilentlyContinue)) {
+        if ($RequireExistingSteamVR) { throw 'SteamVR exited before the selected gaze path started.' }
         Write-Output 'Starting SteamVR...'
         Start-SteamApp 250820
         if (-not (Wait-ForProcess 'vrserver' 60)) {
