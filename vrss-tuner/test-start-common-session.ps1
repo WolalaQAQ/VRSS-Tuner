@@ -14,6 +14,12 @@ if ($InputRoute -ne 'SRanibro') { throw 'Unexpected input route' }
 $global:VrssSessionEvents.Add('provider')
 if ($global:VrssSessionProviderFails) { throw 'Provider fixture failure' }
 $global:VrssSessionProvider = $true
+$data = Join-Path $env:LOCALAPPDATA 'VRSS Tuner'
+$run = Join-Path $data 'runs\mock'
+New-Item -ItemType Directory -Path $run -Force | Out-Null
+$run | Set-Content -LiteralPath (Join-Path $data 'active-run.txt')
+(@{consumerCount=$(if ($global:VrssSessionHotConsumer) { 1 } else { 0 })} | ConvertTo-Json) |
+    Set-Content -LiteralPath (Join-Path $run 'status.json')
 'Provider started'
 '@, [Text.Encoding]::ASCII)
 [IO.File]::WriteAllText((Join-Path $fixture 'Start-VRChat-Candidate.ps1'), @'
@@ -53,9 +59,12 @@ function Start-Process {
 function Start-Sleep { param([int]$Milliseconds, [int]$Seconds) }
 
 $global:VrssSessionFakeGame = $fakeGame
+$previousLocalAppData = $env:LOCALAPPDATA
 try {
+    $env:LOCALAPPDATA = Join-Path $fixture 'local-app-data'
     foreach ($case in @(
-        @{game=$true;steamvr=$false;candidate=$false;expected='close-game,start-steamvr,preflight,provider,steam-game'},
+        @{game=$true;steamvr=$false;candidate=$false;hot=$true;expected='start-steamvr,preflight,provider'},
+        @{game=$true;steamvr=$true;candidate=$false;hot=$false;expected='preflight,provider,close-game,steam-game'},
         @{game=$false;steamvr=$true;candidate=$true;expected='preflight,provider,candidate-game'})) {
         $global:VrssSessionEvents = [Collections.Generic.List[string]]::new()
         $global:VrssSessionGame = $case.game
@@ -64,11 +73,12 @@ try {
         $global:VrssSessionCandidate = $case.candidate
         $global:VrssSessionReady = $true
         $global:VrssSessionProviderFails = $false
-        $output = & (Join-Path $fixture 'Start-Common-Session.ps1') -InputRoute SRanibro
+        $global:VrssSessionHotConsumer = [bool]$case.hot
+        $output = & (Join-Path $fixture 'Start-Common-Session.ps1') -InputRoute SRanibro -HotAttachWaitSeconds 0
         $actual = $global:VrssSessionEvents -join ','
         if ($actual -ne $case.expected -or -not $global:VrssSessionGame -or
             -not $global:VrssSessionProvider -or
-            -not (@($output) -match 'Common gaze provider and VRChat are running')) {
+            -not (@($output) -match '(NVIDIA found the already-running VRChat|Common gaze provider and VRChat are running)')) {
             throw "Common session order failed: $actual (expected $($case.expected))"
         }
     }
@@ -80,21 +90,23 @@ try {
         $global:VrssSessionCandidate = $false
         $global:VrssSessionReady = $failure -ne 'preflight'
         $global:VrssSessionProviderFails = $failure -eq 'provider'
+        $global:VrssSessionHotConsumer = $false
         $failed = $false
-        try { & (Join-Path $fixture 'Start-Common-Session.ps1') -InputRoute SRanibro | Out-Null }
+        try { & (Join-Path $fixture 'Start-Common-Session.ps1') -InputRoute SRanibro -HotAttachWaitSeconds 0 | Out-Null }
         catch { $failed = $true }
         if (-not $failed -or -not $global:VrssSessionGame -or $global:VrssSessionProvider -or
             ($global:VrssSessionEvents -join ',') -ne
-            $(if ($failure -eq 'preflight') { 'close-game,preflight,steam-game' }
-              else { 'close-game,preflight,provider,steam-game' })) {
+            $(if ($failure -eq 'preflight') { 'preflight' }
+              else { 'preflight,provider' })) {
             throw "Common session failed to restore VRChat after $failure failure."
         }
     }
-    Write-Output 'COMMON_SESSION_PASS auto_close steamvr preflight provider steam_launch candidate_launch failure_restore no_UAC'
+    Write-Output 'COMMON_SESSION_PASS hot_attach fallback_restart steamvr preflight provider candidate_launch failure_preserves_game no_UAC'
 } finally {
+    $env:LOCALAPPDATA = $previousLocalAppData
     foreach ($name in @('VrssSessionFakeGame','VrssSessionEvents','VrssSessionGame',
                        'VrssSessionSteamVr','VrssSessionProvider','VrssSessionCandidate',
-                       'VrssSessionReady','VrssSessionProviderFails')) {
+                       'VrssSessionReady','VrssSessionProviderFails','VrssSessionHotConsumer')) {
         Remove-Variable -Name $name -Scope Global -ErrorAction SilentlyContinue
     }
 }

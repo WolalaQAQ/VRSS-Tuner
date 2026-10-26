@@ -1,5 +1,6 @@
 param([ValidateSet('Baballonia','PSVR2Toolkit','SRanibro','ViveProEye','ViveStreaming','SteamVREye','Varjo')]
-      [string]$InputRoute='Baballonia')
+      [string]$InputRoute='Baballonia',
+      [ValidateRange(0,30)][int]$HotAttachWaitSeconds=8)
 $ErrorActionPreference = 'Stop'
 $bundle = $PSScriptRoot
 $gameWasRunning = [bool](Get-Process VRChat -ErrorAction SilentlyContinue)
@@ -20,24 +21,38 @@ function Start-SteamApp([int]$appId) {
     Start-Process -FilePath ('steam://rungameid/' + $appId) | Out-Null
 }
 
-try {
-    if ($gameWasRunning) {
-        Write-Output 'Closing VRChat normally before starting the common gaze provider...'
-        foreach ($game in @(Get-Process VRChat -ErrorAction SilentlyContinue)) {
-            if (-not $game.CloseMainWindow()) {
-                throw 'VRChat did not accept a normal close. Close it in Steam, then retry.'
-            }
+function Close-VRChatNormally {
+    Write-Output 'Closing VRChat normally...'
+    foreach ($game in @(Get-Process VRChat -ErrorAction SilentlyContinue)) {
+        if (-not $game.CloseMainWindow()) {
+            throw 'VRChat did not accept a normal close. Close it in Steam, then retry.'
         }
-        $deadline = (Get-Date).AddSeconds(45)
-        while (Get-Process VRChat -ErrorAction SilentlyContinue) {
-            if ((Get-Date) -ge $deadline) {
-                throw 'VRChat is still running. Close it normally in Steam, then retry.'
-            }
-            Start-Sleep -Milliseconds 500
-        }
-        $gameClosed = $true
     }
+    $deadline = (Get-Date).AddSeconds(45)
+    while (Get-Process VRChat -ErrorAction SilentlyContinue) {
+        if ((Get-Date) -ge $deadline) {
+            throw 'VRChat is still running. Close it normally in Steam, then retry.'
+        }
+        Start-Sleep -Milliseconds 500
+    }
+    $script:gameClosed = $true
+}
 
+function Test-NvidiaConsumer {
+    $active = Join-Path $env:LOCALAPPDATA 'VRSS Tuner\active-run.txt'
+    if (-not (Test-Path -LiteralPath $active -PathType Leaf)) { return $false }
+    $run = (Get-Content -LiteralPath $active -Raw).Trim()
+    $allowed = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'VRSS Tuner\runs')).TrimEnd('\') + '\'
+    if (-not [IO.Path]::GetFullPath($run).StartsWith($allowed,[StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Invalid active provider run path.'
+    }
+    $status = Join-Path $run 'status.json'
+    if (-not (Test-Path -LiteralPath $status -PathType Leaf)) { return $false }
+    try { return ([int]((Get-Content -LiteralPath $status -Raw | ConvertFrom-Json).consumerCount) -gt 0) }
+    catch { return $false }
+}
+
+try {
     if (-not (Get-Process vrserver -ErrorAction SilentlyContinue)) {
         Write-Output 'Starting SteamVR...'
         Start-SteamApp 250820
@@ -48,7 +63,7 @@ try {
 
     $setup = $null
     for ($attempt = 0; $attempt -lt 3; $attempt++) {
-        $setup = & (Join-Path $bundle 'Test-Setup.ps1') | ConvertFrom-Json
+        $setup = & (Join-Path $bundle 'Test-Setup.ps1') -AllowRunningVRChat:$gameWasRunning | ConvertFrom-Json
         if ($setup.readyForProviderLaunch) { break }
         $transient = @($setup.reasons | Where-Object {
             $_ -in @('Start SteamVR with a connected HMD.',
@@ -64,12 +79,30 @@ try {
         throw ('Setup is not ready: ' + ($reasons -join '; '))
     }
 
+    if ($gameWasRunning -and $setup.hmdIdentityCandidate) { Close-VRChatNormally }
+
     Write-Output ('Starting common gaze provider from ' + $InputRoute + '...')
-    & (Join-Path $bundle 'Start-Provider.ps1') -InputRoute $InputRoute
+    & (Join-Path $bundle 'Start-Provider.ps1') -InputRoute $InputRoute `
+        -AllowRunningVRChat:([bool](Get-Process VRChat -ErrorAction SilentlyContinue))
     if (-not (Get-Process common_vrss_provider -ErrorAction SilentlyContinue)) {
         throw 'The common gaze provider did not stay running.'
     }
     $providerStarted = $true
+
+    if (Get-Process VRChat -ErrorAction SilentlyContinue) {
+        $deadline = (Get-Date).AddSeconds($HotAttachWaitSeconds)
+        do {
+            if (Test-NvidiaConsumer) {
+                $gameLaunched = $true
+                Write-Output 'NVIDIA found the already-running VRChat. No restart was needed.'
+                return
+            }
+            if ((Get-Date) -ge $deadline) { break }
+            Start-Sleep -Milliseconds 500
+        } while ($true)
+        Write-Output 'No NVIDIA consumer appeared in the running VRChat. Restarting it with the provider ready...'
+        Close-VRChatNormally
+    }
 
     if ($setup.hmdIdentityCandidate) {
         Write-Output 'Launching protected VRChat with the candidate HMD identity...'

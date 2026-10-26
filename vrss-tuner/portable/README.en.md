@@ -9,7 +9,7 @@ This is an experimental Windows app for NVIDIA VRSS2 settings and gaze input. Ex
 1. Extract the **whole ZIP**, open `VRSS Tuner.exe`, and choose your language at the top right. Install the NVIDIA driver, headset eye-tracking software, SteamVR, and VRChat separately.
 2. For **native Pimax XR5**, enable Pimax eye tracking, select **Pimax path (native priority)** and **VRSS On** in the tuner, then apply. Do not run `Start-Provider.cmd` or the common-path `Test-Setup.cmd`.
 3. For **Steam Frame**, follow the Frame-specific instructions below. Do not run a common-path launcher.
-4. For **other gaze sources**, connect the headset, start its gaze software, enable VRSS and select a source in the tuner, then click **Start common path + VRChat**. The launcher closes VRChat normally if needed, starts SteamVR if needed, checks setup, starts the provider, and relaunches VRChat. Windows administrator confirmation still needs a manual click.
+4. For **other gaze sources**, connect the headset, start its gaze software, enable VRSS and select a source in the tuner, then click **Start common path + VRChat**. The launcher first tries to connect to an already-running VRChat, and restarts it normally only if NVIDIA does not report a consumer. It also starts SteamVR if needed. Windows administrator confirmation still needs a manual click.
 5. Enable MSAA in VRChat's graphics settings. Verify in the headset that the high-quality region follows gaze in both eyes. A green tuner status alone does not prove the rendered result.
 
 Other PCs and untested headsets are not guaranteed to work. The common path requires an audited driver image and an NVIDIA VRChat profile that allows VRSS. If setup fails, use its reported reason.
@@ -19,7 +19,7 @@ Other PCs and untested headsets are not guaranteed to work. The common path requ
 Use the [Frame-specific instructions](STEAM-FRAME.md), not the legacy EDID setup check or Start-Provider. Enable SteamVR eye-tracking sharing, VR layout 4 and MSAA; close VRChat and Unity, select **Steam Frame > Connect / Retry**, then **Launch VRChat (Frame)**. Vertical conversion is built in; start with Common provider gains X=1, Y=1. This is separate from the generic SteamVR eye-action route below.
 ## Choose one gaze source
 
-For the common path, connect the headset and start its gaze software. Turn on VRSS in the tuner, then choose **one** source. The tuner button performs the VRChat close, SteamVR start, setup check, provider start, and VRChat relaunch in order. If VRChat does not accept a normal close, it stops without forcing termination. The native Pimax path does not use this setup check or launcher.
+For the common path, connect the headset and start its gaze software. Turn on VRSS in the tuner, then choose **one** source. The tuner button starts SteamVR if needed, checks setup, and starts the provider. If VRChat is already running, it waits about eight seconds for an NVIDIA consumer before restarting VRChat. Candidate HMD identities require a restart. If VRChat does not accept a normal close, the launcher stops without forcing termination. The native Pimax path does not use this setup check or launcher.
 
 | Source | Tuner selection | How to start |
 | --- | --- | --- |
