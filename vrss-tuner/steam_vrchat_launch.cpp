@@ -157,7 +157,8 @@ int wmain(int argc,wchar_t** argv) {
     if(argc<2)return 2;
     fs::path target=argv[1];
     const auto exe=target.filename().wstring();
-    if(_wcsicmp(exe.c_str(),L"start_protected_game.exe")!=0 &&
+    if(_wcsicmp(exe.c_str(),L"launch.exe")!=0 &&
+       _wcsicmp(exe.c_str(),L"start_protected_game.exe")!=0 &&
        _wcsicmp(exe.c_str(),L"VRChat.exe")!=0)return 3;
     std::wstring command=Quote(target.wstring());
     for(int i=2;i<argc;++i){command.push_back(L' ');command+=Quote(argv[i]);}
@@ -187,7 +188,8 @@ int wmain(int argc,wchar_t** argv) {
     DWORD result=0;GetExitCodeProcess(child.hProcess,&result);CloseHandle(child.hProcess);
     // Steam tracks the launch-option wrapper. Keep it alive while the protected
     // launcher hands off to the real game, without doing this for test fixtures.
-    if(_wcsicmp(exe.c_str(),L"start_protected_game.exe")==0 &&
+    if((_wcsicmp(exe.c_str(),L"launch.exe")==0 ||
+        _wcsicmp(exe.c_str(),L"start_protected_game.exe")==0) &&
        fs::exists(target.parent_path()/L"VRChat.exe")) {
         const auto deadline=GetTickCount64()+60000;
         while(!Running(L"VRChat.exe") && GetTickCount64()<deadline)Sleep(500);

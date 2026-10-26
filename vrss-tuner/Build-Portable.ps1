@@ -136,5 +136,20 @@ $entries = foreach ($name in $files) {
 [ordered]@{format=1;builtAt=(Get-Date).ToString('o');files=@($entries)} |
     ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $bundle 'bundle-manifest.json') -Encoding UTF8
 $zip = $bundle + '.zip'
-Compress-Archive -LiteralPath $bundle -DestinationPath $zip -CompressionLevel Optimal
+# PowerShell 5.1 writes backslashes into ZIP entry names on Windows. Use
+# portable '/' entry names so the release verifier and other ZIP readers agree.
+Add-Type -AssemblyName System.IO.Compression
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$archive = [IO.Compression.ZipFile]::Open($zip, [IO.Compression.ZipArchiveMode]::Create)
+try {
+    $rootName = [IO.Path]::GetFileName($bundle)
+    foreach ($file in Get-ChildItem -LiteralPath $bundle -File -Recurse) {
+        $relative = $file.FullName.Substring($bundle.Length + 1).Replace('\', '/')
+        $entry = $archive.CreateEntry($rootName + '/' + $relative, [IO.Compression.CompressionLevel]::Optimal)
+        $source = [IO.File]::OpenRead($file.FullName)
+        $destination = $entry.Open()
+        try { $source.CopyTo($destination) }
+        finally { $destination.Dispose(); $source.Dispose() }
+    }
+} finally { $archive.Dispose() }
 [pscustomobject]@{Bundle=$bundle;Zip=$zip;Sha256=(Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash}

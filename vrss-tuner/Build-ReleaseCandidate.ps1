@@ -56,7 +56,7 @@ try {
         if (-not $entry) { throw "Manifest path not found in ZIP: $($item.path)" }
         $stream = $entry.Open()
         $sha = [Security.Cryptography.SHA256]::Create()
-        try { $hash = [Convert]::ToHexString($sha.ComputeHash($stream)) }
+        try { $hash = ([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-', '') }
         finally { $sha.Dispose(); $stream.Dispose() }
         if ($hash -ne $item.sha256) { throw "ZIP content hash mismatch: $($item.path)" }
     }
