@@ -2,7 +2,11 @@
 
 This is an experimental Windows app for NVIDIA VRSS2 settings and gaze input. Switch between Japanese and English at the upper right of the app. Extract the ZIP to a writable folder. No installer or separate Visual C++ runtime is needed.
 
-**The only headset visually verified by the developer is Pimax Dream Air** (GeForce RTX 5090 / NVIDIA driver 610.88). Other headsets and PCs are unverified. See the [full English setup guide](https://github.com/challenger0303/VRSS-Tuner/blob/main/docs/SETUP.md).
+**Upstream's verified setup is Pimax Dream Air** (GeForce RTX 5090 / NVIDIA driver 610.88). A contributor tested Steam Frame on 596.02 before cleanup; see the separate Frame instructions below. See the [full English setup guide](https://github.com/challenger0303/VRSS-Tuner/blob/main/docs/SETUP.md).
+
+## Steam Frame (596.02, experimental)
+
+Use the [Frame-specific instructions](STEAM-FRAME.md), not the legacy EDID setup check or Start-Provider. Enable SteamVR eye-tracking sharing, VR layout 4 and MSAA; close VRChat and Unity, select **Steam Frame > Connect / Retry**, then **Launch VRChat (Frame)**. Vertical conversion is built in; start with Common provider gains X=1, Y=1. Existing Pimax/Baballonia paths remain available.
 
 ## First use
 

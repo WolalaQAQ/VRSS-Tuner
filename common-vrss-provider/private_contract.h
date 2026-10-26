@@ -21,6 +21,7 @@
 #pragma comment(lib, "nvapi64.lib")
 
 // Private calls require an exact audited image pair and method table.
+// EDID-free Frame sessions are additionally restricted to the verified 596.02 path.
 struct Challenge { uint32_t version = 0x10014; uint8_t bytes[16]{}; };
 struct Registration {
     uint32_t version = 0x10020;
@@ -91,15 +92,18 @@ static void PrintToken() {
     CloseHandle(token);
 }
 
-static bool BusyVr() {
+static bool BusyVr(bool includeRuntime=true) {
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (snapshot == INVALID_HANDLE_VALUE) return true;
     PROCESSENTRY32W entry{}; entry.dwSize = sizeof(entry);
     bool busy = false;
-    if (Process32FirstW(snapshot, &entry)) do {
+    if (!Process32FirstW(snapshot, &entry)) { CloseHandle(snapshot); return true; }
+    do {
         for (const wchar_t* name : {L"VRChat.exe", L"vrserver.exe", L"vrcompositor.exe", L"Unity.exe"})
-            if (_wcsicmp(entry.szExeFile, name) == 0) busy = true;
+            if (_wcsicmp(entry.szExeFile, name) == 0 &&
+                (includeRuntime || _wcsicmp(name,L"VRChat.exe")==0 || _wcsicmp(name,L"Unity.exe")==0)) busy = true;
     } while (Process32NextW(snapshot, &entry));
+    if (GetLastError() != ERROR_NO_MORE_FILES) busy = true;
     CloseHandle(snapshot);
     return busy;
 }

@@ -5,9 +5,12 @@
 #include "projection.h"
 #include "gaze_state.h"
 #include "config_io.h"
+#include "OpenVrFrameSource.h"
+#include "ProviderEntry.h"
 #include <atomic>
 #include <filesystem>
 #include <map>
+#include <memory>
 #include <thread>
 #include <psapi.h>
 #pragma comment(lib,"ws2_32.lib")
@@ -163,65 +166,104 @@ struct ConsumerQuery {uint32_t version=0x10028,pad=0;uint64_t count=0,a=0,b=0,c=
 static_assert(sizeof(ConsumerQuery)==40);
 using QueryConsumer=int(__fastcall*)(void*,void*,ConsumerQuery*);
 using SetupListener=int(__fastcall*)(void*,void*,HANDLE*);
-int wmain(int argc,wchar_t** argv) {
+int RunVrssProvider(int argc,wchar_t** argv,const std::function<bool()>& keepRunning,
+                    const std::function<void()>& prepareProfile) {
     std::cout<<std::unitbuf;
     try {
         std::map<std::wstring,std::wstring> args;
         for(int i=1;i+1<argc;i+=2) args[argv[i]]=argv[i+1];
         if(args.count(L"--driver-check-only") && args.at(L"--driver-check-only")==L"1") {
             NvidiaSession nv;InitializeVerifiedDriver(nv);
-            std::cout<<"DRIVER_CHECK_PASS exact audited images\n";
-            return 0;
+            std::cout<<"DRIVER_CHECK_PASS exact audited images\n";return 0;
         }
-        const auto geometry=ReadFields(fs::path(args.at(L"--geometry")));
+        const bool frameInput=args.count(L"--source") && args.at(L"--source")==L"openvr";
+        const bool frameSession=args.count(L"--frame-session") && args.at(L"--frame-session")==L"1";
+        const auto profile=hmd::ParseProfile(args.count(L"--hmd-profile")?args.at(L"--hmd-profile"):L"standard");
+        if(!profile || (!frameInput && *profile!=hmd::Profile::Standard))
+            throw std::runtime_error("Invalid HMD profile for this input source");
+        if(frameSession && (!frameInput || *profile!=hmd::Profile::SteamFrame || !keepRunning || !prepareProfile))
+            throw std::runtime_error("Frame session requires an owned worker and recoverable profile transaction");
+        if(frameInput && BusyVr(false))throw std::runtime_error("Close VRChat and Unity before starting the provider");
+        if(keepRunning && !keepRunning())return 0;
+        OpenVrFrameSource frameSource;
         EyeGeometry eyes[2];
-        for(int eye=0;eye<2;++eye) {
-            auto p=Numbers(geometry.at("projection"+std::to_string(eye)),4);
-            auto r=Numbers(geometry.at("eyeToHead"+std::to_string(eye)),9);
-            std::copy(p.begin(),p.end(),eyes[eye].projection.begin());std::copy(r.begin(),r.end(),eyes[eye].eyeToHead.begin());
-            double det=r[0]*(r[4]*r[8]-r[5]*r[7])-r[1]*(r[3]*r[8]-r[5]*r[6])+r[2]*(r[3]*r[7]-r[4]*r[6]);
-            if(std::abs(det-1)>.01)throw std::runtime_error("Invalid eye rotation");
+        uint32_t vendor=0,product=0;
+        bool unspecifiedIdentity=false;
+        if(frameInput) {
+            auto identity=frameSource.Open(eyes,*profile);
+            if(frameSession) {
+                const auto testIdentity=hmd::SelectSessionIdentity(*profile,identity,bool(keepRunning),bool(prepareProfile));
+                if(!testIdentity)throw std::runtime_error("Frame registration requires a verified Steam Frame with both EDID properties missing");
+                identity=*testIdentity;
+                std::cout<<"registrationIdentity=frame-session-key vendor="<<identity.vendor
+                         <<" product="<<identity.product<<" hardwareIdentity=0\n";
+            }
+            vendor=identity.vendor;product=identity.product;unspecifiedIdentity=identity.unspecified;
         }
-        const uint32_t vendor=std::stoul(geometry.at("vendor")),product=std::stoul(geometry.at("product"));
-        if(!vendor||!product||vendor>65535||product>65535)throw std::runtime_error("Invalid HMD EDID");
+        else {
+            const auto geometry=ReadFields(fs::path(args.at(L"--geometry")));
+            for(int eye=0;eye<2;++eye) {
+                auto p=Numbers(geometry.at("projection"+std::to_string(eye)),4);
+                auto r=Numbers(geometry.at("eyeToHead"+std::to_string(eye)),9);
+                std::copy(p.begin(),p.end(),eyes[eye].projection.begin());std::copy(r.begin(),r.end(),eyes[eye].eyeToHead.begin());
+                double det=r[0]*(r[4]*r[8]-r[5]*r[7])-r[1]*(r[3]*r[8]-r[5]*r[6])+r[2]*(r[3]*r[7]-r[4]*r[6]);
+                if(std::abs(det-1)>.01)throw std::runtime_error("Invalid eye rotation");
+            }
+            vendor=std::stoul(geometry.at("vendor"));product=std::stoul(geometry.at("product"));
+        }
+        if(!unspecifiedIdentity && (!vendor||!product||vendor>65535||product>65535))throw std::runtime_error("Invalid HMD EDID");
         const fs::path output=args.at(L"--output"),config=args.at(L"--config");
         const bool checkOnly=args.count(L"--check-only") && args.at(L"--check-only")==L"1";
         Gain gain=ReadGain(config);
         if(checkOnly) { std::cout<<"GEOMETRY_CONFIG_PASS vendor="<<vendor<<" product="<<product<<'\n';return 0; }
+        if(!hmd::CanRegister({vendor,product,unspecifiedIdentity}))
+            throw std::runtime_error("Steam Frame provides no EDID. NVIDIA 596.02 rejects unspecified vendor/product IDs (-5). "
+                                     "Registration stopped before NVIDIA initialization; no profile settings changed.");
         if(!AdminEnabled())throw std::runtime_error("Enabled Administrators token required");
         std::wstring event=L"Global\\nfdv8Dup8UqK_JnJG2fkew:"+std::to_wstring(vendor)+L":"+std::to_wstring(product)+L"-evt";
         if(!EventAbsent(event))throw std::runtime_error("An existing provider bridge is present or inaccessible");
         fs::create_directories(output);
-        std::ofstream csv(output/"gaze.csv");
-        csv<<"qpc,sourceSequence,fresh,ageSeconds,consumerCount,queryStatus,submitted,submitStatus,leftX,leftY,rightX,rightY\n";
+        std::ofstream csv;
+        if(!frameInput) {
+            csv.open(output/"gaze.csv");
+            csv<<"qpc,sourceSequence,fresh,ageSeconds,consumerCount,queryStatus,submitted,submitStatus,leftX,leftY,rightX,rightY\n";
+        }
         PrintToken();NvidiaSession nv;InitializeVerifiedDriver(nv);
+        if(frameSession && nv.identity!=&driver::k59602)
+            throw std::runtime_error("EDID-free Steam Frame sessions are verified only on NVIDIA 596.02");
         const auto& p=eyes[0].projection;
         CreateGazeHandler(nv,float((std::atan(-p[0])+std::atan(p[1]))*180/3.141592653589793),
             float((std::atan(-p[2])+std::atan(p[3]))*180/3.141592653589793));
         const auto table=VerifiedGazeMethods(nv);
-        int status=0;
+        if(keepRunning && !keepRunning())return 0;
+        if(frameInput && BusyVr(false))throw std::runtime_error("VRChat or Unity started during preparation; registration refused");
         Challenge challenge{};auto get=reinterpret_cast<GetChallenge>(table[3]);
-        status=get(nv.gaze,nv.context,&challenge);if(status)throw std::runtime_error("Challenge failed");
+        int status=get(nv.gaze,nv.context,&challenge);if(status)throw std::runtime_error("Challenge failed: "+std::to_string(status));
         Registration request{};request.vendor=vendor;request.product=product;
         for(int i=0;i<16;++i)request.response[i]=challenge.bytes[i]^kMask[i];
         nv.unregisterFn=reinterpret_cast<UnregisterProvider>(table[7]);
         status=reinterpret_cast<RegisterProvider>(table[4])(nv.gaze,nv.context,&request);
         std::cout<<"register="<<status<<" vendor="<<vendor<<" product="<<product<<'\n';
-        if(status)throw std::runtime_error("Provider registration failed");nv.registered=true;
+        if(status)throw std::runtime_error("Provider registration failed: "+std::to_string(status));nv.registered=true;
         HANDLE listener=nullptr;
         status=reinterpret_cast<SetupListener>(table[6])(nv.gaze,nv.context,&listener);
         std::cout<<"listener="<<status<<" handlePresent="<<(listener!=nullptr)<<'\n';
         if(status||!listener)throw std::runtime_error("Consumer listener setup failed");
+        if(prepareProfile && (!keepRunning || keepRunning()))prepareProfile();
         auto query=reinterpret_cast<QueryConsumer>(table[5]);
         const bool udp=args.count(L"--source")&&args.at(L"--source")==L"udp";
         int port=args.count(L"--port")?std::stoi(args.at(L"--port")):(udp?5556:5555);
         if(port<1||port>65535)throw std::runtime_error("Invalid source port");
-        Input input(udp,port);SetConsoleCtrlHandler(Control,TRUE);
+        std::unique_ptr<Input> input;
+        if(!frameInput)input=std::make_unique<Input>(udp,port);
+        SetConsoleCtrlHandler(Control,TRUE);
         const double seconds=args.count(L"--seconds")?std::stod(args.at(L"--seconds")):1200;
         if(seconds<=0||seconds>3600)throw std::runtime_error("Duration must be 1..3600 seconds");
         const auto started=Clock::now();auto next=started,nextStatus=started,nextConfig=started;
         uint64_t sent=0,freshCount=0,activeCount=0,failed=0,lastSequence=0,lastQpc=0;
-        while(running && std::chrono::duration<double>(Clock::now()-started).count()<seconds) {
+        const bool ownerLifetime=frameInput && bool(keepRunning);
+        while(running && (!keepRunning || keepRunning()) &&
+              (ownerLifetime || std::chrono::duration<double>(Clock::now()-started).count()<seconds)) {
             if(fs::exists(output/"stop.request"))break;
             auto now=Clock::now();
             if(now>=nextConfig) {
@@ -231,8 +273,15 @@ int wmain(int argc,wchar_t** argv) {
             }
             ConsumerQuery consumer{};const int queried=query(nv.gaze,nv.context,&consumer);
             StereoGaze raw{};std::array<float,4> location{};uint64_t qpc=0,seq=0;double age=-1;
-            bool fresh=input.Read(raw,location,qpc,seq,age);
-            if(fresh&&!udp) {
+            bool fresh=false;
+            if(frameInput) {
+                fresh=frameSource.Read(gain,location);
+                if(fresh) {
+                    LARGE_INTEGER sampleTime{};QueryPerformanceCounter(&sampleTime);
+                    qpc=uint64_t(sampleTime.QuadPart);seq=lastSequence+1;age=0;
+                }
+            } else fresh=input->Read(raw,location,qpc,seq,age);
+            if(fresh&&!udp&&!frameInput) {
                 auto left=ProjectHeadTangent(raw.left.tan_x,raw.left.tan_y,eyes[0],gain,0);
                 auto right=ProjectHeadTangent(raw.right.tan_x,raw.right.tan_y,eyes[1],gain,1);
                 location={left[0],left[1],right[0],right[1]};
@@ -240,7 +289,7 @@ int wmain(int argc,wchar_t** argv) {
             if(fresh)++freshCount;
             if(consumer.count)++activeCount;
             bool submitted=false;int updated=0;
-            if(fresh&&queried==0&&consumer.count>0&&seq!=lastSequence&&qpc>lastQpc) {
+            if(frame::ShouldSubmit(fresh,queried,consumer.count,seq,lastSequence,qpc,lastQpc)) {
                 NV_FOVEATED_RENDERING_UPDATE_GAZE_DATA_PARAMS sample{};
                 sample.version=NV_FOVEATED_RENDERING_UPDATE_GAZE_DATA_PARAMS_VER;sample.Timestamp=qpc;
                 auto& l=sample.sStereoData.sLeftEye;auto& r=sample.sStereoData.sRightEye;
@@ -251,16 +300,20 @@ int wmain(int argc,wchar_t** argv) {
                 updated=nv.gaze->UpdateGazeData(nv.context,&sample);submitted=true;++sent;
                 if(updated)++failed;lastSequence=seq;lastQpc=qpc;
             }
-            LARGE_INTEGER host{};QueryPerformanceCounter(&host);
-            csv<<host.QuadPart<<','<<seq<<','<<fresh<<','<<std::setprecision(9)<<age<<','<<consumer.count<<','<<queried<<','<<submitted<<','<<updated;
-            for(float f:location)csv<<','<<f;csv<<'\n';
+            if(csv.is_open()) {
+                LARGE_INTEGER host{};QueryPerformanceCounter(&host);
+                csv<<host.QuadPart<<','<<seq<<','<<fresh<<','<<std::setprecision(9)<<age<<','<<consumer.count<<','<<queried<<','<<submitted<<','<<updated;
+                for(float f:location)csv<<','<<f;csv<<'\n';
+            }
             if(now>=nextStatus) {
                 std::ofstream state(output/"status.tmp");
                 state<<"{\"pid\":"<<GetCurrentProcessId()<<",\"registered\":true,\"fresh\":"<<(fresh?"true":"false")
                      <<",\"consumerCount\":"<<consumer.count<<",\"queryStatus\":"<<queried<<",\"sent\":"<<sent
-                     <<",\"submitFailures\":"<<failed<<",\"sourceSequence\":"<<seq<<",\"locations\":[";
+                     <<",\"submitFailures\":"<<failed<<",\"sourceSequence\":"<<seq
+                     <<",\"identityMode\":\""<<(frameSession?"frame-experimental":"edid")
+                     <<"\",\"deliveryState\":\""<<frame::DeliveryState(fresh,queried,consumer.count,updated)<<"\",\"locations\":[";
                 for(int i=0;i<4;++i)state<<(i?",":"")<<location[i];
-                state<<"],\"xGain\":"<<gain.x<<",\"yGain\":"<<gain.y<<",\"source\":\""<<(udp?"normalized-udp":"brokeneye-tcp")<<"\"}";
+                state<<"],\"xGain\":"<<gain.x<<",\"yGain\":"<<gain.y<<",\"source\":\""<<(frameInput?"steam-frame-openvr":udp?"normalized-udp":"brokeneye-tcp")<<"\"}";
                 state.close();MoveFileExW((output/"status.tmp").c_str(),(output/"status.json").c_str(),MOVEFILE_REPLACE_EXISTING);
                 csv.flush();std::cout<<"fresh="<<fresh<<" consumer="<<consumer.count<<" sent="<<sent<<" failures="<<failed<<'\n';
                 nextStatus=now+std::chrono::seconds(1);
@@ -268,6 +321,11 @@ int wmain(int argc,wchar_t** argv) {
             next+=std::chrono::milliseconds(10);if(next<Clock::now())next=Clock::now();std::this_thread::sleep_until(next);
         }
         std::cout<<"STOP sent="<<sent<<" freshPolls="<<freshCount<<" consumerPolls="<<activeCount<<" failures="<<failed<<'\n';
-        return failed?12:0;
+        const int unregistered=nv.unregisterFn(nv.gaze,nv.context);if(!unregistered)nv.registered=false;
+        std::cout<<"unregister="<<unregistered<<'\n';
+        return failed?12:unregistered?13:0;
     } catch(const std::exception& e) { std::cerr<<"ERROR: "<<e.what()<<'\n';return 1; }
 }
+#ifndef VRSS_PROVIDER_EMBEDDED
+int wmain(int argc,wchar_t** argv) { return RunVrssProvider(argc,argv); }
+#endif

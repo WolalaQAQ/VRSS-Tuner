@@ -4,9 +4,13 @@
 
 VRSS Tuner is an experimental Windows tool for configuring NVIDIA VRSS2 and sending binocular gaze data to a common VRSS provider. It can receive Baballonia OSC gaze data and uses OpenVR headset geometry for per-eye mapping. It does not modify VRChat files or inject a DLL into the game.
 
-**Verified headset:** Pimax Dream Air, with the setup used by the developer. Other headsets and PCs have not been verified. This is an independent project, not an NVIDIA, Pimax, Valve, or VRChat product.
+**Verified setups:** Pimax Dream Air (upstream, 610.88) and Steam Frame (contributor's pre-cleanup build, 596.02). Other headsets and PCs have not been verified. This is an independent project, not an NVIDIA, Pimax, Valve, or VRChat product.
 
 The portable package includes the tuner, common gaze provider, OpenVR geometry helper, bilingual instructions, and a read-only setup check. It requires an NVIDIA driver matching the audited driver binaries (610.88 in the verified setup), a VRChat NVIDIA profile with the VRSS allow setting, SteamVR, a gaze source, and MSAA enabled in VRChat. Unsupported driver builds are refused because the provider uses an undocumented driver interface. Passing the setup check does not establish that the foveated region tracks correctly in a headset.
+
+## Steam Frame (596.02, experimental)
+
+Use the [Frame-specific instructions](docs/STEAM-FRAME.md), not the legacy EDID setup check or Start-Provider. Enable SteamVR eye-tracking sharing, VR layout 4 and MSAA; close VRChat and Unity, select **Steam Frame > Connect / Retry**, then **Launch VRChat (Frame)**. Vertical conversion is built in; start with Common provider gains X=1, Y=1. Existing Pimax/Baballonia paths remain available.
 
 ## Get started
 
