@@ -9,7 +9,7 @@ This is an experimental Windows app for NVIDIA VRSS2 settings and gaze input. Ex
 1. Extract the **whole ZIP**, open `VRSS Tuner.exe`, and choose your language at the top right. Install the NVIDIA driver, headset eye-tracking software, SteamVR, and VRChat separately.
 2. For **native Pimax XR5**, enable Pimax eye tracking, select **Pimax path (native priority)** and **VRSS On** in the tuner, then apply. Do not run `Start-Provider.cmd` or the common-path `Test-Setup.cmd`.
 3. For **Steam Frame**, follow the Frame-specific instructions below. Do not run a common-path launcher.
-4. For **other gaze sources**, close VRChat, connect the headset, start SteamVR, and run `Test-Setup.cmd`. Once the checks pass, select one source from the table and run its matching launcher. Windows will ask for administrator confirmation.
+4. For **other gaze sources**, connect the headset, start its gaze software, enable VRSS and select a source in the tuner, then click **Start common path + VRChat**. The launcher closes VRChat normally if needed, starts SteamVR if needed, checks setup, starts the provider, and relaunches VRChat. Windows administrator confirmation still needs a manual click.
 5. Enable MSAA in VRChat's graphics settings. Verify in the headset that the high-quality region follows gaze in both eyes. A green tuner status alone does not prove the rendered result.
 
 Other PCs and untested headsets are not guaranteed to work. The common path requires an audited driver image and an NVIDIA VRChat profile that allows VRSS. If setup fails, use its reported reason.
@@ -19,7 +19,7 @@ Other PCs and untested headsets are not guaranteed to work. The common path requ
 Use the [Frame-specific instructions](STEAM-FRAME.md), not the legacy EDID setup check or Start-Provider. Enable SteamVR eye-tracking sharing, VR layout 4 and MSAA; close VRChat and Unity, select **Steam Frame > Connect / Retry**, then **Launch VRChat (Frame)**. Vertical conversion is built in; start with Common provider gains X=1, Y=1. This is separate from the generic SteamVR eye-action route below.
 ## Choose one gaze source
 
-For the common path, close VRChat, connect the headset, start SteamVR, and run `Test-Setup.cmd`. Turn on VRSS in the tuner, then choose **one** source. The native Pimax path does not use this setup check or launcher.
+For the common path, connect the headset and start its gaze software. Turn on VRSS in the tuner, then choose **one** source. The tuner button performs the VRChat close, SteamVR start, setup check, provider start, and VRChat relaunch in order. If VRChat does not accept a normal close, it stops without forcing termination. The native Pimax path does not use this setup check or launcher.
 
 | Source | Tuner selection | How to start |
 | --- | --- | --- |
@@ -33,7 +33,7 @@ For the common path, close VRChat, connect the headset, start SteamVR, and run `
 | Quest Pro via Steam Link; other experimental SteamVR sources | SteamVR eye action (hardware unverified) | Enable PC eye-data sharing, then run `Start-SteamVR-Eye.cmd`; the single fixation ray is projected into both eyes. For Steam Frame use the dedicated tab above. |
 | Varjo XR-4 / Aero / XR-3 / VR-3 | Varjo Native SDK (hardware unverified) | Run Varjo Base and `Start-Varjo.cmd`; the installed `VarjoLib.dll` is required |
 
-The tuner's **Start common path** button opens the matching script. If the VIVE DLL is outside the standard installation directories, set `VRSS_VIVE_SDK_DLL` to the full path of `SRanipal.dll` or `VS_PC_SDK.dll`. For Varjo, set `VRSS_VARJO_DLL` to the installed `VarjoLib.dll` if needed; no vendor DLL is bundled. A missing DLL stops before the administrator prompt. If Pro Eye reports only one valid eye, the bridge projects that fresh direction into both eye views. VIVE, SteamVR eye action and Varjo routes have passed code/synthetic tests only; VRChat gaze tracking remains unverified. Varjo gains are read at launch and its per-eye angle offsets are not yet applied.
+The tuner's **Start common path + VRChat** button opens the matching script. `Start-Provider.cmd` remains available for provider-only manual diagnostics. If the VIVE DLL is outside the standard installation directories, set `VRSS_VIVE_SDK_DLL` to the full path of `SRanipal.dll` or `VS_PC_SDK.dll`. For Varjo, set `VRSS_VARJO_DLL` to the installed `VarjoLib.dll` if needed; no vendor DLL is bundled. A missing DLL stops before the administrator prompt. If Pro Eye reports only one valid eye, the bridge projects that fresh direction into both eye views. VIVE, SteamVR eye action and Varjo routes have passed code/synthetic tests only; VRChat gaze tracking remains unverified. Varjo gains are read at launch and its per-eye angle offsets are not yet applied.
 
 The four stages in **Gaze input** monitor the route actually running, across source selections. Green means that stage was observed, amber means a running path still needs verification, and gray means stopped or waiting for data. For Baballonia, input reception and forwarding are separate. For SRanibro, PSVR2 Toolkit, VIVE, SteamVR eye action and Varjo, the source process, fresh gaze reaching the common provider, provider registration, and NVIDIA acceptance are separate checks. When the selected and running routes differ, both are shown. Even a green final stage does not prove a visible VRSS image change.
 

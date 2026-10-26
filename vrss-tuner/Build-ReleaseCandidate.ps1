@@ -27,6 +27,7 @@ try {
     finally { $reader.Dispose() }
     $listed = @($manifest.files)
     $required = @('VRSS Tuner.exe','common-vrss-provider/common_vrss_provider.exe','Audit-Driver.cmd','Audit-Driver.ps1',
+        'Start-Common-Session.ps1',
         'steamvr-gaze-bridge/steamvr_gaze_bridge.exe','psvr2-gaze-bridge/psvr2_gaze_bridge.exe',
         'vive-streaming-gaze-bridge/ViveStreamingGazeBridge.exe',
         'varjo-gaze-bridge/varjo_gaze_bridge.exe','pimax-eye-bridge/driver_sranibro_eye.dll',

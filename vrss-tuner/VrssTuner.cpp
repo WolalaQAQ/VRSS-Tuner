@@ -1507,7 +1507,7 @@ void updateInputStatus() {
         status += L"\r\n選択中の経路と稼働中の経路が異なります。稼働: " +
             std::wstring(gazeSourceName(gLive.source,false));
     setText(gUi.inputStatus, status);
-    setText(gUi.inputStart,source==0?L"純正サービスを復帰":source==1?L"配信を開始":L"共通経路を起動");
+    setText(gUi.inputStart,source==0?L"純正サービスを復帰":source==1?L"配信を開始":L"共通経路＋VRChatを起動");
     EnableWindow(gUi.inputPort, source == 1 && !gInputRelay.Running());
     EnableWindow(gUi.inputForward, source == 1 && !gInputRelay.Running());
     EnableWindow(gUi.inputStart, source==0 ? (!sranibro && pimaxService.found && !pimaxService.running) :

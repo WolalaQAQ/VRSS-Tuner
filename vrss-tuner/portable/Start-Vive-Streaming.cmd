@@ -1,3 +1,3 @@
 @echo off
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Start-Provider.ps1" -InputRoute ViveStreaming
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Start-Common-Session.ps1" -InputRoute ViveStreaming
 pause

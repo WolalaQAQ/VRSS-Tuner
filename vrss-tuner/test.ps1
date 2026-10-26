@@ -5,6 +5,8 @@ $vcvars = Find-Vcvars64
 New-Item -ItemType Directory -Path (Join-Path $here 'build') -Force | Out-Null
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $here 'test-start-provider.ps1')
 if ($LASTEXITCODE -ne 0) { throw 'Windows PowerShell provider launch smoke test failed.' }
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $here 'test-start-common-session.ps1')
+if ($LASTEXITCODE -ne 0) { throw 'Windows PowerShell common-session smoke test failed.' }
 & (Join-Path (Split-Path -Parent $here) 'common-vrss-provider\test-driver-identity.ps1')
 & (Join-Path $here 'test-frame-runtime.ps1')
 & (Join-Path $here 'test-frame-gate.ps1')
