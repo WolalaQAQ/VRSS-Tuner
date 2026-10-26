@@ -1,3 +1,4 @@
+param([string]$PimaxBridgeDll = '', [string]$VarjoSdk = '')
 $ErrorActionPreference = 'Stop'
 $here = $PSScriptRoot
 $research = Split-Path -Parent $here
@@ -23,7 +24,53 @@ $line = 'call "' + $vcvars + '" >nul && cl /nologo /std:c++17 /utf-8 /EHsc /O2 /
 if ($LASTEXITCODE -ne 0) { throw 'Portable geometry exporter build failed' }
 Copy-Item -LiteralPath (Join-Path $openvr 'openvr_api.dll') -Destination (Join-Path $common 'openvr_api.dll')
 Copy-Item -LiteralPath (Join-Path $here 'portable\calibration.txt') -Destination (Join-Path $common 'calibration.txt')
-foreach ($name in @('Test-Setup.ps1','Start-Provider.ps1','Stop-Provider.ps1','Test-Setup.cmd','Start-Provider.cmd','Stop-Provider.cmd')) {
+$steamBridge = Join-Path $bundle 'steamvr-gaze-bridge'
+New-Item -ItemType Directory -Path $steamBridge -ErrorAction Stop | Out-Null
+$steamSource = Join-Path $research 'steamvr-gaze-bridge\bridge.cpp'
+$steamExe = Join-Path $steamBridge 'steamvr_gaze_bridge.exe'
+$line = 'call "' + $vcvars + '" >nul && cl /nologo /std:c++17 /utf-8 /EHsc /O2 /W4 /MT /I"' + $research + '" /Fo"' + (Join-Path $here 'build\steamvr_gaze_bridge.portable.obj') + '" "' + $steamSource + '" /link "' + (Join-Path $openvr 'openvr_api.lib') + '" /OUT:"' + $steamExe + '"'
+& cmd.exe /d /c $line
+if ($LASTEXITCODE -ne 0) { throw 'SteamVR eye bridge build failed' }
+Copy-Item -LiteralPath (Join-Path $openvr 'openvr_api.dll') -Destination (Join-Path $steamBridge 'openvr_api.dll')
+Copy-Item -LiteralPath (Join-Path $research 'steamvr-gaze-probe\eye_actions.json') -Destination (Join-Path $steamBridge 'eye_actions.json')
+$psvr2Bridge = Join-Path $bundle 'psvr2-gaze-bridge'
+New-Item -ItemType Directory -Path $psvr2Bridge -ErrorAction Stop | Out-Null
+$psvr2Source = Join-Path $research 'psvr2-gaze-bridge\bridge.cpp'
+$psvr2Exe = Join-Path $psvr2Bridge 'psvr2_gaze_bridge.exe'
+$line = 'call "' + $vcvars + '" >nul && cl /nologo /std:c++17 /utf-8 /EHsc /O2 /W4 /MT /DUNICODE /D_UNICODE /Fo"' + (Join-Path $here 'build\psvr2_gaze_bridge.portable.obj') + '" "' + $psvr2Source + '" /link /OUT:"' + $psvr2Exe + '"'
+& cmd.exe /d /c $line
+if ($LASTEXITCODE -ne 0) { throw 'PSVR2 bridge build failed' }
+Copy-Item -LiteralPath (Join-Path $research 'psvr2-gaze-bridge\PSVR2Toolkit-LICENSE.txt') -Destination (Join-Path $psvr2Bridge 'PSVR2Toolkit-LICENSE.txt')
+$viveBridge = Join-Path $bundle 'vive-streaming-gaze-bridge'
+& dotnet publish (Join-Path $research 'vive-streaming-gaze-bridge\ViveStreamingGazeBridge.csproj') `
+    -c Release -r win-x64 -p:PublishAot=true -p:StripSymbols=true -o $viveBridge | Out-Null
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath (Join-Path $viveBridge 'ViveStreamingGazeBridge.exe'))) {
+    throw 'VIVE gaze bridge native build failed'
+}
+Remove-Item -LiteralPath (Join-Path $viveBridge 'ViveStreamingGazeBridge.pdb') -ErrorAction SilentlyContinue
+$varjoBridge = Join-Path $bundle 'varjo-gaze-bridge'
+New-Item -ItemType Directory -Path $varjoBridge -ErrorAction Stop | Out-Null
+$varjoBuilt = Join-Path $research 'varjo-gaze-bridge\build\varjo_gaze_bridge.exe'
+if ($VarjoSdk) {
+    & (Join-Path $research 'varjo-gaze-bridge\build.ps1') -VarjoSdk $VarjoSdk | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'Varjo bridge build failed.' }
+}
+if (Test-Path -LiteralPath $varjoBuilt -PathType Leaf) {
+    Copy-Item -LiteralPath $varjoBuilt -Destination (Join-Path $varjoBridge 'varjo_gaze_bridge.exe')
+} else {
+    Write-Warning 'Varjo SDK bridge is not bundled; supply -VarjoSdk to build it.'
+}
+$pimaxBridge = Join-Path $bundle 'pimax-eye-bridge'
+New-Item -ItemType Directory -Path $pimaxBridge -ErrorAction Stop | Out-Null
+$pimaxBuilt = if ($PimaxBridgeDll) { [IO.Path]::GetFullPath($PimaxBridgeDll) } else {
+    Join-Path $research 'pimax-eye-bridge\bin\driver_sranibro_eye.dll'
+}
+if (Test-Path -LiteralPath $pimaxBuilt -PathType Leaf) {
+    Copy-Item -LiteralPath $pimaxBuilt -Destination (Join-Path $pimaxBridge 'driver_sranibro_eye.dll')
+} else {
+    Write-Warning 'Pimax eye-device bridge is not bundled; supply -PimaxBridgeDll if needed.'
+}
+foreach ($name in @('Test-Setup.ps1','Start-Provider.ps1','Stop-Provider.ps1','Start-VRChat-Candidate.ps1','Test-Setup.cmd','Start-Provider.cmd','Stop-Provider.cmd','Start-VRChat-Candidate.cmd','Start-PSVR2-Toolkit.cmd','Start-SRanibro.cmd','Start-Vive-Pro-Eye.cmd','Start-Vive-Streaming.cmd','Start-SteamVR-Eye.cmd','Start-Varjo.cmd')) {
     Copy-Item -LiteralPath (Join-Path $here "portable\$name") -Destination (Join-Path $bundle $name)
 }
 Copy-Item -LiteralPath (Join-Path $here 'portable\README.md') -Destination (Join-Path $bundle 'README.md')
@@ -31,15 +78,27 @@ Copy-Item -LiteralPath (Join-Path $here 'portable\README.en.md') -Destination (J
 foreach ($name in @('STEAM-FRAME.md','DRIVER-CONTRACTS.md')) {
     Copy-Item -LiteralPath (Join-Path $research "docs\$name") -Destination (Join-Path $bundle $name)
 }
+Copy-Item -LiteralPath (Join-Path $research 'docs\FACE-TRACKING-COEXISTENCE.md') -Destination (Join-Path $bundle 'FACE-TRACKING-COEXISTENCE.md')
+Copy-Item -LiteralPath (Join-Path $research 'docs\HMD-GAZE-COMPATIBILITY.md') -Destination (Join-Path $bundle 'HMD-GAZE-COMPATIBILITY.md')
 Copy-Item -LiteralPath (Join-Path $research 'LICENSE') -Destination (Join-Path $bundle 'LICENSE.txt') -ErrorAction Stop
 Copy-Item -LiteralPath (Join-Path $openvr 'LICENSE') -Destination (Join-Path $bundle 'OpenVR-LICENSE.txt') -ErrorAction Stop
 Copy-Item -LiteralPath (Join-Path $nvapi 'License.txt') -Destination (Join-Path $bundle 'NVAPI-LICENSE.txt')
 $files = @('VRSS Tuner.exe','openvr_api.dll','common-vrss-provider/common_vrss_provider.exe',
     'common-vrss-provider/export_openvr_geometry.exe','common-vrss-provider/openvr_api.dll',
     'common-vrss-provider/calibration.txt',
-    'Test-Setup.ps1','Start-Provider.ps1','Stop-Provider.ps1',
-    'Test-Setup.cmd','Start-Provider.cmd','Stop-Provider.cmd','README.md','README.en.md','LICENSE.txt',
+    'steamvr-gaze-bridge/steamvr_gaze_bridge.exe','steamvr-gaze-bridge/openvr_api.dll','steamvr-gaze-bridge/eye_actions.json',
+    'psvr2-gaze-bridge/psvr2_gaze_bridge.exe','psvr2-gaze-bridge/PSVR2Toolkit-LICENSE.txt',
+    'vive-streaming-gaze-bridge/ViveStreamingGazeBridge.exe',
+    'Test-Setup.ps1','Start-Provider.ps1','Stop-Provider.ps1','Start-VRChat-Candidate.ps1',
+    'Test-Setup.cmd','Start-Provider.cmd','Stop-Provider.cmd','Start-VRChat-Candidate.cmd',
+    'Start-PSVR2-Toolkit.cmd','Start-SRanibro.cmd',
+    'Start-Vive-Pro-Eye.cmd','Start-Vive-Streaming.cmd','Start-SteamVR-Eye.cmd','Start-Varjo.cmd',
+    'README.md','README.en.md','FACE-TRACKING-COEXISTENCE.md',
+    'HMD-GAZE-COMPATIBILITY.md','LICENSE.txt',
     'OpenVR-LICENSE.txt','NVAPI-LICENSE.txt','STEAM-FRAME.md','DRIVER-CONTRACTS.md')
+foreach ($optional in @('varjo-gaze-bridge/varjo_gaze_bridge.exe','pimax-eye-bridge/driver_sranibro_eye.dll')) {
+    if (Test-Path -LiteralPath (Join-Path $bundle $optional) -PathType Leaf) { $files += $optional }
+}
 $entries = foreach ($name in $files) {
     [ordered]@{path=$name;sha256=(Get-FileHash -LiteralPath (Join-Path $bundle $name) -Algorithm SHA256).Hash}
 }

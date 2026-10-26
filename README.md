@@ -4,18 +4,22 @@
 
 VRSS Tuner is an experimental Windows tool for configuring NVIDIA VRSS2 and sending binocular gaze data to a common VRSS provider. It can receive Baballonia OSC gaze data and uses OpenVR headset geometry for per-eye mapping. It does not modify VRChat files or inject a DLL into the game.
 
-**Verified setups:** Pimax Dream Air (upstream, 610.88) and Steam Frame (contributor's pre-cleanup build, 596.02). Other headsets and PCs have not been verified. This is an independent project, not an NVIDIA, Pimax, Valve, or VRChat product.
+**Reported live setups:** Pimax Dream Air (maintainer, NVIDIA 610.88) and Steam Frame (PR contributor, NVIDIA 596.02). Other headsets and PCs have not been verified. This is an independent project, not an NVIDIA, Pimax, Valve, or VRChat product.
 
-The portable package includes the tuner, common gaze provider, OpenVR geometry helper, bilingual instructions, and a read-only setup check. It requires an NVIDIA driver matching the audited driver binaries (610.88 in the verified setup), a VRChat NVIDIA profile with the VRSS allow setting, SteamVR, a gaze source, and MSAA enabled in VRChat. Unsupported driver builds are refused because the provider uses an undocumented driver interface. Passing the setup check does not establish that the foveated region tracks correctly in a headset.
+The common gaze provider accepts Baballonia OSC, a direct [PSVR2 Toolkit CAPI](docs/SETUP.md#psvr2-input-route-unverified) bridge, SRanibro binocular gaze, and experimental VIVE Streaming/Pro Eye bridges. The SRanibro route is shared across headsets and uses the connected HMD's OpenVR geometry. VRSS tracking on PSVR2, VIVE, and other new HMDs remains unverified.
+
+The portable package includes the tuner, common gaze provider, OpenVR geometry helper, bilingual instructions, and a read-only setup check. It requires an exact audited NVIDIA driver image: 610.88 for the maintainer's standard route or 596.02 for the Frame session. VRSS must be allowed in the VRChat NVIDIA profile, SteamVR and gaze input must be available, and MSAA must be enabled in VRChat. Unsupported driver builds are refused because the provider uses an undocumented driver interface. Passing a setup check does not establish that the foveated region tracks correctly in a headset.
+
+For headset-specific eye SDKs and wireless PCVR routes, see [HMD gaze compatibility](docs/HMD-GAZE-COMPATIBILITY.md). The generic SteamVR eye-action bridge remains experimental; the Frame session uses a separate OpenVR foveation-center API and a Frame-specific registration path.
 
 ## Steam Frame (596.02, experimental)
 
-Use the [Frame-specific instructions](docs/STEAM-FRAME.md), not the legacy EDID setup check or Start-Provider. Enable SteamVR eye-tracking sharing, VR layout 4 and MSAA; close VRChat and Unity, select **Steam Frame > Connect / Retry**, then **Launch VRChat (Frame)**. Vertical conversion is built in; start with Common provider gains X=1, Y=1. Existing Pimax/Baballonia paths remain available.
+Use the [Frame-specific instructions](docs/STEAM-FRAME.md), not the legacy EDID setup check or Start-Provider. Enable SteamVR eye-tracking sharing, VR layout 4 and MSAA; close VRChat and Unity, select **Steam Frame > Connect / Retry**, then **Launch VRChat (Frame)**. Vertical conversion is built in; start with Common provider gains X=1, Y=1.
 
 ## Get started
 
 1. Download the ZIP from [Releases](https://github.com/challenger0303/VRSS-Tuner/releases) and extract it to a writable folder.
-2. Connect the HMD, start SteamVR, leave VRChat closed, and run `Test-Setup.cmd`.
+2. For the standard route, connect the HMD, start SteamVR, leave VRChat closed, and run `Test-Setup.cmd`. For Steam Frame, follow the Frame-specific guide above.
 3. Follow the [setup guide](docs/SETUP.md) to enable VRSS, start the provider and gaze relay, then launch VRChat with MSAA enabled.
 
 If the check reports an unsupported driver or missing VRSS allow setting, do not force the provider to start. Open an issue with the diagnostic output, driver version, and HMD model; remove personally identifying information first.

@@ -2,6 +2,8 @@
 
 [English](SETUP.md) · [プロジェクト概要](../README.ja.md)
 
+この手順は標準プロバイダー経路用です。NVIDIA 596.02のSteam Frameは[専用手順](STEAM-FRAME.md)を使ってください。
+
 ## 確認済み構成と制限
 
 - 開発者が実機で視覚的に確認したHMD：**Pimax Dream Air**。
@@ -15,9 +17,27 @@
 2. HMDを接続しSteamVRを起動します。VRChatは閉じておきます。Baballoniaから左右の視線OSCを`127.0.0.1:9020`に送るよう設定します。
 3. `Test-Setup.cmd`を実行します。パッケージのハッシュ、NVIDIAドライバー、プロファイル、SteamVR/HMD投影情報、動作中のプロバイダーを読み取ります。ドライバー設定は変更しません。`readyForProviderLaunch: false`の場合、日英両方の理由が表示されます。
 4. 不足が`vrssOn`だけなら、`VRSS Tuner.exe`の画質設定で**オン**にして保存し、Windowsの管理者確認を承認します。診断を再実行してください。`driverSupported`または`vrssAllowed`がfalseなら、この構成では共通プロバイダーを有効化できません。検査を飛ばさないでください。
-5. `Start-Provider.cmd`を実行し、Windowsの管理者確認を承認します。Tunerで共通プロバイダーを選び、視線入力を開始します。プロバイダーはTunerからの左右視線をローカルUDPポート5556で受け取ります。TunerがBaballonia OSCを受ける既定のポートは9020です。
+5. `Start-Provider.cmd`を実行し、Windowsの管理者確認を承認します。Tunerの「視線入力」でソースに「Baballonia OSC」を選び、配信を開始します。プロバイダーはTunerからの左右視線をローカルUDPポート5556で受け取ります。TunerがBaballonia OSCを受ける既定のポートは9020です。「Pimax経路（純正優先）」を選んだ場合はTunerのOSC転送を使用しません。
 6. VRChatを起動してグラフィック設定のMSAAを有効にします。HMD内で高画質領域が両目に現れ、視線の左右・上下に追従するか確認します。プロセスのログだけでは画質の確認になりません。
 7. 終了時は`Stop-Provider.cmd`を実行します。これは正常終了を要求するもので、SteamVR、VRChat、ベンダーのプロバイダーを終了しません。
+
+## Tunerの動作表示
+
+「視線入力」タブには、OSC受信、Tunerからの転送、共通プロバイダーの登録、NVIDIAへの視線送信結果を別々に表示します。左右の点は**送信した視線位置**であり、高画質領域の輪郭ではありません。緑の「NVIDIA視線」は、VRアプリ側の照会があり視線更新APIが成功したことを示します。VRSSが実際に描画されたか、正しい位置にあるかはHMD内で確認してください。Pimax経路は詳細計測を公開しないため、TunerにはNVIDIAプロバイダーの起動状態のみ表示します。
+
+## Pimax経路
+
+「Pimax経路（純正優先）」はPimax純正XR5ランタイムが動いている間はその視線を優先します。SRanibroがカメラを占有する設定に切り替わった場合、別途導入済みのPimax視線ブリッジが新鮮な両眼視線を受け取れたときだけ代わりに登録します。TunerはSRanibroを自動起動せず、純正経路への切替を妨げません。検証済みのブリッジバイナリはポータブルZIPの`pimax-eye-bridge/`に含めましたが、自動導入はしません。
+
+検証に使用したSRanibro 0.1.10-betaの`pimax_xr5`設定は純正サービスを停止・無効化しました。SRanibroを終了してもサービスが自動復帰しなかった場合は、Tunerの「純正サービスを復帰」を押してWindowsの管理者確認を承認してください。このボタンはSRanibro起動中には使用できません。サービスだけを復帰してもPimax側が視線デバイスを再登録しない場合があります。その場合はPimaxアプリの「サービスを再起動」を実行します（VRアプリが終了することがあります）。純正サービスの起動とプロバイダーの起動表示だけでは視線の有効性は証明できないため、最後はHMD内で高画質領域の追従を確認します。
+
+## PSVR2の入力経路（未検証）
+
+PSVR2では二つの入力経路を選べます。**PSVR2 Toolkit（直接）**はインストール済みToolkitのCAPIから両目の視線を読み、共通プロバイダーへ送ります。Tunerで選択し、`Start-PSVR2-Toolkit.cmd`を実行します。`psvr2_toolkit_capi.dll`を提供するToolkit版が必要です。Toolkit本体は同梱しません。**SRanibro（共通）**はローカルのBrokenEye形式の両目視線ストリーム（5555番ポート）を読みます。Tunerで選択し、SRanibroを起動してから`Start-SRanibro.cmd`を実行します。このSRanibro経路はPSVR2専用ではなく、接続中HMDのOpenVR投影情報を使用します。ただしHMDごとの視線座標系と補正は実機で確認が必要です。二つの入力元を同時には起動しません。「視線補正」タブでは共通の補正ファイルを使うため、HMD別の値はプロファイルに保存します。PSVR2での視線受信、NVIDIA登録、VRChatの高画質領域の追従は**実機未検証**です。[PSVR2Toolkit導入手順](https://github.com/BnuuySolutions/PSVR2Toolkit/wiki/Installation)で対応版の要件も確認してください。
+
+## VIVEの入力経路（実機未検証）
+
+**VIVE Pro Eye**は純正SRanipalを導入して視線を校正し、TunerでPro Eyeを選んで`Start-Vive-Pro-Eye.cmd`を実行します。**VIVE Streaming**はベンダーのPC視線転送を有効にし、対応する入力元と`Start-Vive-Streaming.cmd`を使います。DLLを自動検出できない場合は、`VRSS_VIVE_SDK_DLL`に導入済みのDLLのフルパスを指定してください。ベンダーDLLは同梱しません。両経路ともビルドと模擬座標テストのみ済んでおり、VIVE実機での視線受信とVRChatのVRSS2描画は未検証です。[HMD別の対応状況](HMD-GAZE-COMPATIBILITY.md)も参照してください。
 
 ## 位置補正
 

@@ -4,9 +4,11 @@
 
 VRSS Tunerは、NVIDIA VRSS2の設定と、左右の視線データを共通VRSSプロバイダーへ送るためのWindows用試験ツールです。BaballoniaのOSC視線データを受け取り、OpenVRのHMD投影情報を使って左右別に位置を計算します。VRChatのファイル変更やゲームへのDLL注入は行いません。
 
-**確認環境：Pimax Dream Air（開発者・610.88）、Steam Frame（貢献者の整理前ビルド・596.02）。** その他のHMDやPCは未確認です。NVIDIA、Pimax、Valve、VRChatの公式製品ではありません。
+**実機報告：Pimax Dream Air（開発者・NVIDIA 610.88）、Steam Frame（PR貢献者・NVIDIA 596.02）。** その他のHMDやPCは未確認です。NVIDIA、Pimax、Valve、VRChatの公式製品ではありません。
 
-ポータブル版にはTuner、共通視線プロバイダー、OpenVR投影情報取得ツール、日英ガイド、読み取り専用の導入診断を同梱しています。監査済みのNVIDIAドライバー（確認環境は610.88）、VRSSを許可するVRChatプロファイル、SteamVR、視線入力、VRChat内のMSAAが必要です。共通プロバイダーは非公開のドライバーインターフェースを使うため、未対応ドライバーでの起動を拒否します。診断合格だけではHMD内の視線追従を証明できません。
+PSVR2の直接経路に加え、VIVE Pro EyeのSRanipal経路とVIVE Streaming経路を試験的に追加しました。PICOは受信プロトコル診断、VarjoはSDKブリッジの模擬試験までです。[HMD別の対応状況](docs/HMD-GAZE-COMPATIBILITY.md)に検証範囲を記載しています。Frame専用経路以外の新しいHMDでのVRSS追従は未確認です。
+
+ポータブル版にはTuner、共通視線プロバイダー、OpenVR投影情報取得ツール、日英ガイド、読み取り専用の導入診断を同梱しています。監査済みのNVIDIAドライバー（標準経路は610.88、Frame専用経路は596.02）、VRSSを許可するVRChatプロファイル、SteamVR、視線入力、VRChat内のMSAAが必要です。共通プロバイダーは非公開のドライバーインターフェースを使うため、未対応ドライバーでの起動を拒否します。診断合格だけではHMD内の視線追従を証明できません。
 
 ## Steam Frame（596.02・実験対応）
 
@@ -15,7 +17,7 @@ Frameでは旧来のEDID診断やStart-Providerを使わず、[Frame専用手順
 ## 使い始める
 
 1. [Releases](https://github.com/challenger0303/VRSS-Tuner/releases)からZIPを取得し、書き込み可能なフォルダーへ展開します。
-2. HMDを接続し、SteamVRを起動してVRChatを閉じた状態で`Test-Setup.cmd`を実行します。
+2. 標準経路ではHMDを接続し、SteamVRを起動してVRChatを閉じた状態で`Test-Setup.cmd`を実行します。Steam Frameでは上記の専用手順を使います。
 3. [日本語セットアップガイド](docs/SETUP.ja.md)に沿ってVRSSと視線プロバイダーを起動し、VRChat内のMSAAを有効にします。
 
 ドライバー非対応やVRSS許可設定の不足が表示された場合、強制起動しないでください。診断結果、ドライバー版、HMD機種を添えてIssueへ報告できます。個人情報は投稿前に削除してください。

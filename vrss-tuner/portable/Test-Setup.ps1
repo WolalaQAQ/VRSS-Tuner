@@ -4,9 +4,12 @@ $bundle = $PSScriptRoot
 $provider = Join-Path $bundle 'common-vrss-provider\common_vrss_provider.exe'
 $exporter = Join-Path $bundle 'common-vrss-provider\export_openvr_geometry.exe'
 $tuner = Join-Path $bundle 'VRSS Tuner.exe'
-$calibration = Join-Path $bundle 'common-vrss-provider\calibration.txt'
+$calibration = Join-Path $env:LOCALAPPDATA 'VRSS Tuner\common-calibration.txt'
 $data = Join-Path $env:LOCALAPPDATA 'VRSS Tuner\preflight'
 New-Item -ItemType Directory -Path $data -Force | Out-Null
+if (-not (Test-Path -LiteralPath $calibration -PathType Leaf)) {
+    Copy-Item -LiteralPath (Join-Path $bundle 'common-vrss-provider\calibration.txt') -Destination $calibration
+}
 $reasons = [Collections.Generic.List[string]]::new()
 $integrity = $true
 $manifest = Get-Content -LiteralPath (Join-Path $bundle 'bundle-manifest.json') -Raw | ConvertFrom-Json
@@ -15,7 +18,9 @@ foreach ($entry in $manifest.files) {
     $path = [IO.Path]::GetFullPath((Join-Path $bundle $entry.path))
     if (-not $path.StartsWith($bundleFull, [StringComparison]::OrdinalIgnoreCase) -or
         -not (Test-Path -LiteralPath $path -PathType Leaf) -or
-        (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ne $entry.sha256) {
+        # Tuner edits calibration.txt; --readiness and --check-only validate it below.
+        ($entry.path -ne 'common-vrss-provider/calibration.txt' -and
+         (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ne $entry.sha256)) {
         $integrity = $false
         $reasons.Add("Package file missing or changed: $($entry.path)")
     }
@@ -57,14 +62,53 @@ if ($official) { $reasons.Add('An official gaze provider is active; keep that ro
 if ($common) { $reasons.Add('A common provider is already running.') }
 $geometry = $false
 $geometryFile = Join-Path $data 'geometry.txt'
+$identitySource = 'unavailable'
+$identityVendor = 0
+$identityProduct = 0
+$identityFingerprint = ''
+$candidate = $env:VRSS_HMD_ID_CANDIDATE
+$candidateValid = $false
+if ($candidate) {
+    if ($candidate -match '^([1-9][0-9]{0,4}):([1-9][0-9]{0,4})$') {
+        $candidateVendor = [int]$Matches[1]
+        $candidateProduct = [int]$Matches[2]
+        $candidateValid = $candidateVendor -le 65535 -and $candidateProduct -le 65535
+    }
+    if (-not $candidateValid) {
+        $reasons.Add('Invalid VRSS_HMD_ID_CANDIDATE. Use decimal vendor:product, each 1..65535.')
+    }
+}
 if ($integrity -and $steamVr) {
-    $null = & $exporter $geometryFile 2>&1 | Out-String
+    $exportArgs = @($geometryFile)
+    if ($candidateValid) {
+        $exportArgs += @('--candidate-id',$candidateVendor,$candidateProduct)
+    }
+    Remove-Item -LiteralPath $geometryFile -ErrorAction SilentlyContinue
+    $exportResult = & $exporter @exportArgs 2>&1 | Out-String
     $geometry = $LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $geometryFile)
+    if ($geometry) {
+        $fields = @{}
+        foreach ($line in Get-Content -LiteralPath $geometryFile) {
+            $parts = $line -split '=',2
+            if ($parts.Count -eq 2) { $fields[$parts[0]] = $parts[1] }
+        }
+        $identitySource = $fields['identitySource']
+        $identityVendor = [int]$fields['vendor']
+        $identityProduct = [int]$fields['product']
+        $identityFingerprint = $fields['identityFingerprint']
+    }
     if ($geometry -and $config) {
         $null = & $provider --geometry $geometryFile --config $calibration --output $data --check-only 1 2>&1 | Out-String
         $geometry = $LASTEXITCODE -eq 0
     }
-    if (-not $geometry) { $reasons.Add('Could not read and validate the connected HMD geometry.') }
+    if (-not $geometry) {
+        if ($exportResult.Contains('HMD_EDID_AND_STABLE_ID_UNAVAILABLE')) {
+            $reasons.Add('The HMD exposes neither a usable EDID nor a stable OpenVR tracking-system and serial pair.')
+        } else { $reasons.Add('Could not read and validate the connected HMD geometry.') }
+    }
+}
+if ($identitySource -in @('candidate-auto','candidate-manual') -and $details['hmd_test_branch'] -ne 'enabled') {
+    $reasons.Add('Candidate HMD identity needs the audited NVIDIA HMD test branch in the VRChat profile.')
 }
 $reasonsJapanese = @(foreach ($reason in $reasons) {
     switch ($reason) {
@@ -78,6 +122,9 @@ $reasonsJapanese = @(foreach ($reason in $reasons) {
         'An official gaze provider is active; keep that route or stop it using the vendor controls.' { '公式視線プロバイダーが動作中です。公式経路を使うか、ベンダーの操作で停止してください。'; break }
         'A common provider is already running.' { '共通プロバイダーはすでに動作しています。'; break }
         'Could not read and validate the connected HMD geometry.' { '接続中のHMDの投影情報を読み取り・検証できません。'; break }
+        'The HMD exposes neither a usable EDID nor a stable OpenVR tracking-system and serial pair.' { 'HMDからEDIDも安定したOpenVRの追跡システム名とシリアル番号も取得できません。'; break }
+        'Invalid VRSS_HMD_ID_CANDIDATE. Use decimal vendor:product, each 1..65535.' { 'VRSS_HMD_ID_CANDIDATEが不正です。vendor:productを十進数1～65535で指定してください。'; break }
+        'Candidate HMD identity needs the audited NVIDIA HMD test branch in the VRChat profile.' { '代替HMD IDを使うには、VRChatプロファイルに監査済みのNVIDIA HMDテスト経路が必要です。'; break }
         default { "パッケージのファイルが不足または変更されています: $reason" }
     }
 })
@@ -89,14 +136,25 @@ $reasonsJapanese = @(foreach ($reason in $reasons) {
     driverMessage = $driverMessage
     vrchatProfileReadable = $profile
     vrssAllowed = $allow
+    hmdTestBranch = $details['hmd_test_branch'] -eq 'enabled'
     vrssOn = $mode
     commonCalibrationReadable = $config
     steamVrRunning = $steamVr
     vrchatRunning = $vrchat
     officialProviderRunning = $official
+    pimaxXr5RuntimeRunning = $details['pimax_xr5_runtime_running'] -eq 'yes'
+    pimaxServiceRunning = $details['pimax_service_running'] -eq 'yes'
+    pimaxServiceDisabled = $details['pimax_service_disabled'] -eq 'yes'
+    sranibroRunning = $details['sranibro_running'] -eq 'yes'
+    pimaxBridgePresent = $details['pimax_bridge_present'] -eq 'yes'
     commonProviderRunning = $common
     hmdGeometryValid = $geometry
-    gazeInput = 'Start Baballonia relay from VRSS Tuner after provider launch; live tracking still requires a headset check.'
+    hmdIdentitySource = $identitySource
+    hmdIdentityVendor = $identityVendor
+    hmdIdentityProduct = $identityProduct
+    hmdIdentityFingerprint = $identityFingerprint
+    hmdIdentityCandidate = $identitySource -in @('candidate-auto','candidate-manual')
+    gazeInput = 'Select and start the matching gaze source in VRSS Tuner after provider launch; live tracking still requires a headset check.'
     reasons = @($reasons)
     reasonsJapanese = @($reasonsJapanese)
 } | ConvertTo-Json -Depth 4
