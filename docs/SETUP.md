@@ -2,28 +2,29 @@
 
 [日本語](SETUP.ja.md) · [Project overview](../README.md)
 
-This guide covers the standard provider route. Steam Frame on NVIDIA 596.02 uses the separate [Frame guide](STEAM-FRAME.md).
+This guide covers the native Pimax and common-provider routes. Steam Frame on NVIDIA 596.02 uses the separate [Frame guide](STEAM-FRAME.md).
 
 ## Tested configuration and limits
 
 - Headset confirmed with the developer's live visual check: **Pimax Dream Air**.
 - GPU/driver in that setup: GeForce RTX 5090, NVIDIA driver 610.88. The provider checks the exact hashes and gaze-handler methods of the audited `nvapi64_impl.dll` and `nvwgf2umx.dll`, not just the displayed driver version. An explicit experimental contract for another exact image pair is described in [driver contracts](DRIVER-CONTRACTS.md); unmatched builds are refused.
-- SteamVR/OpenVR headset geometry, a readable NVIDIA VRChat profile with the VRSS allow setting, binocular gaze from Baballonia OSC, and MSAA enabled inside VRChat are required for this route.
-- Other headsets, PCs, driver builds, and OSC sources have not been verified. The setup checker can identify prerequisites but cannot prove a visible, moving foveated region.
+- The common route needs SteamVR/OpenVR headset geometry, an NVIDIA VRChat profile that allows VRSS, valid gaze from the selected source, and MSAA enabled inside VRChat. The native Pimax route uses Pimax eye tracking.
+- Other headsets, PCs and driver builds are hardware-unverified. The setup checker can identify prerequisites but cannot prove a visible, moving high-quality region.
 
 ## Install
 
-1. Download the portable ZIP from [Releases](https://github.com/challenger0303/VRSS-Tuner/releases). Extract the entire ZIP to a writable directory; keep `VRSS Tuner.exe`, scripts and `common-vrss-provider` together. Do not copy only the EXE.
-2. Connect the headset and start SteamVR. Leave VRChat closed. Configure Baballonia to send left- and right-eye OSC gaze data to `127.0.0.1:9020`.
-3. Run `Test-Setup.cmd`. It reads package hashes, NVIDIA driver, profile settings, SteamVR/HMD geometry and running provider processes. It does not change driver settings. A `readyForProviderLaunch: false` result includes English and Japanese reasons.
-4. If the only missing setting is `vrssOn`, open `VRSS Tuner.exe`, choose **On** in Graphics, save and approve the Windows administrator prompt. Run the setup check again. If `driverSupported` or `vrssAllowed` is false, this package cannot activate the common provider on that setup; do not bypass the check.
-5. Run `Start-Provider.cmd` and approve the administrator prompt. In the tuner's Gaze Input tab, select **Baballonia OSC** as the source and start the relay. The provider listens for the tuner's binocular relay on loopback UDP port 5556. The tuner receives Baballonia OSC on loopback port 9020 by default. Selecting **Pimax path (native priority)** does not use the tuner's OSC relay.
-6. Launch VRChat and enable MSAA in its graphics settings. Verify in the headset that a high-quality region appears in both eyes and follows gaze horizontally and vertically. A process log alone is not visual confirmation.
-7. Finish with `Stop-Provider.cmd`. This requests a graceful stop; it does not terminate SteamVR, VRChat, or a vendor provider.
+1. Download the portable ZIP from [Releases](https://github.com/challenger0303/VRSS-Tuner/releases). Extract the **entire ZIP** to a writable directory; do not copy only `VRSS Tuner.exe`. Open the tuner and choose a language at the top right.
+2. **Native Pimax XR5:** Enable headset eye tracking, select **Pimax path (native priority)** in Gaze input, turn VRSS **On** in Graphics and apply it. Start SteamVR and VRChat normally. Do not run the common-provider scripts.
+3. **Common provider with SRanibro, PSVR2 Toolkit or another source:** Start the headset and its gaze software, then connect SteamVR. Select one source in Gaze input, turn VRSS **On** in Graphics and apply it, then click **Start common path + VRChat**. This runs setup checks and starts the provider. Approve the Windows administrator prompt manually. A route requiring the fixed HMD key may normally close and relaunch an already-running VRChat.
+4. **Steam Frame:** Follow the [Frame guide](STEAM-FRAME.md) instead of the common launch button.
+5. Enable MSAA in VRChat's Graphics settings. Start with x4 for comparison. Verify in the headset that a high-quality region appears in both eyes and follows gaze horizontally and vertically. A green status in the tuner alone does not prove the rendered effect.
+6. When finished with the common route, run `Stop-Provider.cmd`. This leaves VRChat, SteamVR and vendor providers running. The native Pimax route does not need this script.
+
+For a manual, read-only common-route check, run `Test-Setup.cmd`. If `driverSupported` or `vrssAllowed` is false, the common provider cannot start on that setup. `Start-Provider.cmd` is for provider-only diagnostics. Baballonia sends binocular OSC to `127.0.0.1:9020` by default.
 
 ## Live status in the tuner
 
-The Gaze Input tab separately shows OSC reception, relay transmission, common-provider registration, and the result of gaze updates sent to NVIDIA. The left/right dots show **submitted gaze positions**, not the boundary of the high-quality region. Green NVIDIA gaze means a VR consumer was present and the gaze update API returned success. Verify actual VRSS rendering and alignment in the headset. The Pimax path exposes no equivalent telemetry to the tuner, so only its NVIDIA provider process state is shown.
+The Gaze Input tab shows the source, tuner relay, provider registration and NVIDIA gaze updates separately. Gray means stopped or awaiting data; amber means more checks are needed; green means that stage was observed. The left/right dots show **submitted gaze positions**, not the boundary of the high-quality region. Verify actual rendering and alignment in the headset. Available telemetry differs on the native Pimax route.
 
 ## Pimax path
 
@@ -51,6 +52,6 @@ The bundled `common-vrss-provider/calibration.txt` starts with zero per-eye offs
 | `vrssAllowed: false` | The NVIDIA VRChat profile lacks the VRSS allow setting. This package does not fabricate or replace that profile. |
 | `steamVrRunning: false` or `hmdGeometryValid: false` | Connect the HMD, start SteamVR, then rerun the check. |
 | Official provider is running | Use that route, or stop it through the vendor's normal controls before using the common provider. The script never stops it automatically. |
-| Provider runs but region does not track | Confirm Baballonia sends fresh binocular gaze, the tuner relay is started, VRChat MSAA is enabled, and both eyes are visually checked. |
+| Provider runs but region does not track | Check fresh binocular gaze from the selected source, each tuner input/provider/NVIDIA stage, VRChat MSAA and both eyes in the headset. Baballonia also requires starting the tuner relay. |
 
 Diagnostic output and run logs are written under `%LOCALAPPDATA%\VRSS Tuner`. They may contain machine and headset information; inspect before sharing. The package does not include NVIDIA or Pimax drivers and makes no guarantee for unsupported configurations.

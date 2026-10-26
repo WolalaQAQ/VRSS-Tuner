@@ -2,28 +2,29 @@
 
 [English](SETUP.md) · [プロジェクト概要](../README.ja.md)
 
-この手順は標準プロバイダー経路用です。NVIDIA 596.02のSteam Frameは[専用手順](STEAM-FRAME.md)を使ってください。
+Pimax純正経路と共通プロバイダー経路の起動手順です。NVIDIA 596.02のSteam Frameは[専用手順](STEAM-FRAME.md)を使ってください。
 
 ## 確認済み構成と制限
 
 - 開発者が実機で視覚的に確認したHMD：**Pimax Dream Air**。
 - 確認環境のGPU／ドライバー：GeForce RTX 5090、NVIDIA 610.88。プロバイダーは表示上のバージョンだけでなく、`nvapi64_impl.dll`と`nvwgf2umx.dll`のハッシュと視線ハンドラーのメソッド配置を検査します。別の実体を明示的に追加する実験用契約は[ドライバー契約](DRIVER-CONTRACTS.md)を参照してください。一致しない実体は拒否します。
-- SteamVR/OpenVRのHMD投影情報、VRSSを許可するNVIDIAのVRChatプロファイル、Baballonia OSCからの左右視線、VRChat内のMSAAが必要です。
-- 他のHMD、PC、ドライバービルド、OSC送信元は未検証です。導入診断に合格しても、視界内で高画質領域が追従する保証にはなりません。
+- 共通経路にはSteamVR/OpenVRのHMD投影情報、VRSSを許可するNVIDIAのVRChatプロファイル、選択した入力元からの有効な視線、VRChat内のMSAAが必要です。Pimax純正経路ではPimaxの視線機能を使用します。
+- 他のHMD、PC、ドライバービルドは実機未検証です。導入診断に合格しても、視界内で高画質領域が追従する保証にはなりません。
 
 ## 導入手順
 
-1. [Releases](https://github.com/challenger0303/VRSS-Tuner/releases)からポータブルZIPを取得し、全体を書き込み可能なフォルダーに展開します。`VRSS Tuner.exe`だけを取り出さず、スクリプトと`common-vrss-provider`も一緒に置いてください。
-2. HMDを接続しSteamVRを起動します。VRChatは閉じておきます。Baballoniaから左右の視線OSCを`127.0.0.1:9020`に送るよう設定します。
-3. `Test-Setup.cmd`を実行します。パッケージのハッシュ、NVIDIAドライバー、プロファイル、SteamVR/HMD投影情報、動作中のプロバイダーを読み取ります。ドライバー設定は変更しません。`readyForProviderLaunch: false`の場合、日英両方の理由が表示されます。
-4. 不足が`vrssOn`だけなら、`VRSS Tuner.exe`の画質設定で**オン**にして保存し、Windowsの管理者確認を承認します。診断を再実行してください。`driverSupported`または`vrssAllowed`がfalseなら、この構成では共通プロバイダーを有効化できません。検査を飛ばさないでください。
-5. `Start-Provider.cmd`を実行し、Windowsの管理者確認を承認します。Tunerの「視線入力」でソースに「Baballonia OSC」を選び、配信を開始します。プロバイダーはTunerからの左右視線をローカルUDPポート5556で受け取ります。TunerがBaballonia OSCを受ける既定のポートは9020です。「Pimax経路（純正優先）」を選んだ場合はTunerのOSC転送を使用しません。
-6. VRChatを起動してグラフィック設定のMSAAを有効にします。HMD内で高画質領域が両目に現れ、視線の左右・上下に追従するか確認します。プロセスのログだけでは画質の確認になりません。
-7. 終了時は`Stop-Provider.cmd`を実行します。これは正常終了を要求するもので、SteamVR、VRChat、ベンダーのプロバイダーを終了しません。
+1. [Releases](https://github.com/challenger0303/VRSS-Tuner/releases)からポータブルZIPを取得し、**全体を**書き込み可能なフォルダーに展開します。`VRSS Tuner.exe`だけを取り出さないでください。Tunerを開き、右上で言語を選びます。
+2. **Pimax純正XR5を使う場合：** HMDとPimaxの視線機能を有効にし、Tunerの「視線入力」で「Pimax経路（純正優先）」を選びます。「画質」でVRSSをオンにして適用し、SteamVRとVRChatを通常どおり起動します。共通プロバイダー用の起動スクリプトは使いません。
+3. **SRanibro・PSVR2 Toolkitなどの共通経路を使う場合：** HMDと対応する視線ソフトを起動し、SteamVRを接続します。Tunerの「視線入力」で入力元を一つ選び、「画質」でVRSSをオンにして適用します。「共通経路＋VRChatを起動」を押します。導入診断とプロバイダー起動は自動で行われます。Windowsの管理者確認は手動で承認してください。固定HMDキーが必要な経路では、起動中のVRChatが通常終了して再起動することがあります。
+4. **Steam Frameの場合：** 上記の共通起動ボタンではなく、[Frame専用手順](STEAM-FRAME.md)に従います。
+5. VRChatの「設定 → グラフィック」でMSAAを有効にします。比較にはx4から始め、HMD内で高画質領域が両目に現れ、視線の左右・上下に追従するか確認します。Tunerの緑の表示だけでは実際の画質変化は証明できません。
+6. 共通経路の終了時は`Stop-Provider.cmd`を実行します。VRChat、SteamVR、ベンダーのプロバイダーは終了しません。Pimax純正経路ではこのスクリプトは不要です。
+
+共通経路の診断だけを手動で行う場合は`Test-Setup.cmd`を使えます。`driverSupported`または`vrssAllowed`がfalseなら、この構成では共通プロバイダーを起動できません。`Start-Provider.cmd`はプロバイダー単体の手動診断用です。Baballonia OSCは既定で`127.0.0.1:9020`に左右視線を送ります。
 
 ## Tunerの動作表示
 
-「視線入力」タブには、OSC受信、Tunerからの転送、共通プロバイダーの登録、NVIDIAへの視線送信結果を別々に表示します。左右の点は**送信した視線位置**であり、高画質領域の輪郭ではありません。緑の「NVIDIA視線」は、VRアプリ側の照会があり視線更新APIが成功したことを示します。VRSSが実際に描画されたか、正しい位置にあるかはHMD内で確認してください。Pimax経路は詳細計測を公開しないため、TunerにはNVIDIAプロバイダーの起動状態のみ表示します。
+「視線入力」タブは入力元、Tunerの転送、プロバイダー登録、NVIDIAへの視線送信を別々に表示します。灰色は停止・データ待ち、橙は追加確認が必要、緑はその段階の観測成功です。左右の点は**送信した視線位置**であり、高画質領域の輪郭ではありません。VRSSが実際に描画されたか、正しい位置にあるかはHMD内で確認してください。Pimax純正経路では取得できるテレメトリーが異なります。
 
 ## Pimax経路
 
@@ -51,6 +52,6 @@ PSVR2では二つの入力経路を選べます。**PSVR2 Toolkit（直接）**�
 | `vrssAllowed: false` | NVIDIAのVRChatプロファイルにVRSS許可設定がありません。このパッケージはプロファイルの強制作成や置換を行いません。 |
 | `steamVrRunning: false`／`hmdGeometryValid: false` | HMDを接続してSteamVRを起動し、再診断します。 |
 | 公式プロバイダーが動作中 | その経路を使うか、ベンダーの通常操作で停止してから共通経路を試してください。スクリプトは自動停止しません。 |
-| プロバイダーは動くが領域が追従しない | Baballoniaが新しい左右視線を出しているか、Tunerの配信が開始したか、VRChatのMSAAが有効か、両目の実映像を確認してください。 |
+| プロバイダーは動くが領域が追従しない | 選んだ視線ソフトが新しい左右視線を出しているか、Tunerの入力・プロバイダー・NVIDIAの各段階、VRChatのMSAA、両目の実映像を順に確認してください。BaballoniaではTunerの配信開始も必要です。 |
 
 診断結果と実行ログは`%LOCALAPPDATA%\VRSS Tuner`に保存します。共有前にPCやHMDの情報が含まれていないか確認してください。NVIDIA／Pimaxドライバー本体は同梱しておらず、未検証構成での動作は保証していません。
