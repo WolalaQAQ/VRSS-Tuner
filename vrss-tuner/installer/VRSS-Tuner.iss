@@ -35,11 +35,21 @@ Name: "ja"; MessagesFile: "compiler:Languages\Japanese.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "{#BundleDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#BundleDir}\*"; DestDir: "{app}"; Excludes: "\common-vrss-provider\common_vrss_provider.exe,\common-vrss-provider\openvr_api.dll"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Keep the running provider until it exits. Test-Setup verifies the staged
+; files against bundle-manifest.json and applies them before its next start.
+Source: "{#BundleDir}\common-vrss-provider\common_vrss_provider.exe"; DestDir: "{app}\common-vrss-provider"; Flags: onlyifdoesntexist
+Source: "{#BundleDir}\common-vrss-provider\openvr_api.dll"; DestDir: "{app}\common-vrss-provider"; Flags: onlyifdoesntexist
+Source: "{#BundleDir}\common-vrss-provider\common_vrss_provider.exe"; DestDir: "{app}\updates"; Flags: ignoreversion
+Source: "{#BundleDir}\common-vrss-provider\openvr_api.dll"; DestDir: "{app}\updates"; Flags: ignoreversion
 ; Existing Steam launch options on upgraded systems point here. Keep this
 ; compatibility bridge as a harmless passthrough after uninstall.
-Source: "{#BundleDir}\steam_vrchat_launch.exe"; DestDir: "{localappdata}\VRSS Tuner\SteamLaunch"; Flags: ignoreversion uninsneveruninstall
-Source: "{#BundleDir}\openvr_api.dll"; DestDir: "{localappdata}\VRSS Tuner\SteamLaunch"; Flags: ignoreversion uninsneveruninstall
+; VRChat keeps this executable open for its whole session. Preserve an
+; existing copy during upgrades so the installer can update Tuner live.
+; New installations still receive both files. SteamVR autostart copies the
+; newest bundle bridge after VRChat exits.
+Source: "{#BundleDir}\steam_vrchat_launch.exe"; DestDir: "{localappdata}\VRSS Tuner\SteamLaunch"; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "{#BundleDir}\openvr_api.dll"; DestDir: "{localappdata}\VRSS Tuner\SteamLaunch"; Flags: onlyifdoesntexist uninsneveruninstall
 
 [Icons]
 Name: "{group}\VRSS Tuner"; Filename: "{app}\VRSS Tuner.exe"; WorkingDir: "{app}"

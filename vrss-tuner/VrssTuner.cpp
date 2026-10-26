@@ -449,7 +449,7 @@ enum ControlId {
     kGazeLeftMinus, kGazeLeftPlus, kGazeRightMinus, kGazeRightPlus, kGazeInvert,
     kGazeRefresh, kGazeApply, kGazeRestore, kGazeReset,
     kAreaSlider, kEstimateMsaa, kProfileName, kProfileSave, kProfileSwitch,
-    kInputTab, kInputPort, kInputForward, kInputStart, kInputProviderOnly, kInputStop, kInputStatus, kPreviewZoom,
+    kInputTab, kInputPort, kInputForward, kInputStart, kInputStop, kInputStatus, kPreviewZoom,
     kLanguage, kFrameTab, kFrameStart, kFrameStop, kFrameLaunch
 };
 struct Ui {
@@ -457,7 +457,7 @@ struct Ui {
     ProfileValues loaded{};
     bool loadedOk{};
     HWND driverTab{}, gazeTab{}, gazeSourceLabel{}, gazePathNote{}, gazeX{}, gazeY{}, gazeLeft{}, gazeRight{}, gazeInvert{}, gazeStatus{}, gazeApply{}, gazeRestore{};
-    HWND profileName{}, profileSave{}, profileSwitch{}, inputTab{}, gazeSource{}, sourceNote{}, inputPort{}, inputForward{}, inputStart{}, inputProviderOnly{}, inputStop{}, inputStatus{}, liveMonitor{}, previewZoom{}, language{};
+    HWND profileName{}, profileSave{}, profileSwitch{}, inputTab{}, gazeSource{}, sourceNote{}, inputPort{}, inputForward{}, inputStart{}, inputStop{}, inputStatus{}, liveMonitor{}, previewZoom{}, language{};
     live::Target target{live::Target::Pimax};
     live::Snapshot gazeLoaded{};
     bool gazeLoadedOk{};
@@ -573,7 +573,7 @@ void applyLanguage() {
         SendMessageW(gUi.gazeSource,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(translated.c_str()));
     }
     SendMessageW(gUi.gazeSource,CB_SETCURSEL,source,0);
-    for (HWND handle : {gUi.status, gUi.gazeStatus, gUi.inputStatus,gUi.inputStart,gUi.inputProviderOnly,gUi.frameStatus,gUi.gazeSourceLabel,gUi.gazePathNote,gUi.sourceNote,
+    for (HWND handle : {gUi.status, gUi.gazeStatus, gUi.inputStatus,gUi.inputStart,gUi.frameStatus,gUi.gazeSourceLabel,gUi.gazePathNote,gUi.sourceNote,
                         gUi.regionArea, gUi.regionCost, gUi.regionNote, gUi.installInfo}) {
         auto found = gOriginalText.find(handle);
         if (found != gOriginalText.end()) {
@@ -691,6 +691,7 @@ LRESULT CALLBACK liveMonitorProc(HWND window,UINT message,WPARAM wParam,LPARAM l
     const bool pimaxFresh = gLive.vendor && gPimaxFreshAt && tick >= gPimaxFreshAt && tick-gPimaxFreshAt < 1500;
     const bool queueFresh = gLive.vendor && gNvidiaFreshAt && tick >= gNvidiaFreshAt && tick-gNvidiaFreshAt < 1500;
     const bool commonDotsFresh = gLive.providerReady && gLive.provider.fresh &&
+        gLive.providerSequenceAt && tick >= gLive.providerSequenceAt && tick-gLive.providerSequenceAt < 1500 &&
         (gLive.source==1?gLive.relaySent:gLive.relayFresh);
     const std::wstring inputDetail=gLive.source==0?(pimaxFresh?
         (en?L"Pimax gaze moving":L"Pimax視線を受信中"):
@@ -1458,6 +1459,28 @@ void updateLiveMonitor(bool vendor, bool common) {
     }
     if (gUi.liveMonitor) InvalidateRect(gUi.liveMonitor, nullptr, FALSE);
 }
+void updateGazeMap() {
+    if (!gUi.liveMonitor || gUi.panel != 2) return;
+    if (gLive.vendor) {
+        std::array<float, 4> location{};
+        if (gPimaxGaze.Read(location)) { gPimaxLocation=location; gPimaxFreshAt=GetTickCount64(); }
+        if (gNvidiaQueue.Read(location)) { gNvidiaLocation=location; gNvidiaFreshAt=GetTickCount64(); }
+    } else if (gLive.common) {
+        telemetry::Snapshot snapshot{};
+        int route=-1;
+        if (readProviderTelemetry(snapshot,route) && snapshot.registered && snapshot.pid==gLive.providerPid) {
+            const auto now=GetTickCount64();
+            if (snapshot.sourceSequence!=gLive.lastProviderSequence) {
+                gLive.providerSequenceAt=now;
+                gLive.lastProviderSequence=snapshot.sourceSequence;
+            }
+            gLive.provider=snapshot;
+            if (gLive.source>=2) gLive.relayFresh=gLive.relaySent=
+                snapshot.fresh && recent(gLive.providerSequenceAt,now);
+        }
+    }
+    InvalidateRect(gUi.liveMonitor,nullptr,FALSE);
+}
 void updateInputStatus() {
     if (!gUi.inputStatus) return;
     const int source = gSelectedSource.load();
@@ -1520,13 +1543,12 @@ void updateInputStatus() {
         status += L"\r\n選択中の経路と稼働中の経路が異なります。稼働: " +
             std::wstring(gazeSourceName(gLive.source,false));
     setText(gUi.inputStatus, status);
-    setText(gUi.inputStart,source==0?L"純正サービスを復帰":source==1?L"配信を開始":L"共通経路＋VRChatを起動");
+    setText(gUi.inputStart,source==0?L"純正サービスを復帰":L"視線経路を起動");
     EnableWindow(gUi.inputPort, source == 1 && !gInputRelay.Running());
     EnableWindow(gUi.inputForward, source == 1 && !gInputRelay.Running());
     EnableWindow(gUi.inputStart, source==0 ? (!sranibro && pimaxService.found && !pimaxService.running) :
-                 source==1 ? !gInputRelay.Running() : !common && !vendor);
-    EnableWindow(gUi.inputProviderOnly, source>=1 && !common && !vendor);
-    EnableWindow(gUi.inputStop, source == 1 ? gInputRelay.Running() : source>=2 && common);
+                 source==1 ? (!vendor && (!gInputRelay.Running() || !common)) : !common && !vendor);
+    EnableWindow(gUi.inputStop, source>=1 && (gInputRelay.Running() || common));
 }
 void runPortableScript(const wchar_t* fileName, const wchar_t* arguments=nullptr) {
     if (gResearch.empty()) return;
@@ -1536,15 +1558,15 @@ void runPortableScript(const wchar_t* fileName, const wchar_t* arguments=nullptr
         reinterpret_cast<INT_PTR>(ShellExecuteW(gUi.window,L"open",script.c_str(),arguments,script.parent_path().c_str(),SW_SHOWNORMAL))<=32)
         localizedMessageBox(gUi.window,L"起動スクリプトを開けませんでした。",L"視線入力",MB_ICONWARNING);
 }
-void startInputRelay() {
-    if (gSelectedSource.load() != 1) return;
+bool startInputRelay() {
+    if (gSelectedSource.load() != 1) return false;
     float portFloat{}, forwardFloat{};
     if (!parseNumber(getText(gUi.inputPort), portFloat) || portFloat != std::floor(portFloat) ||
         portFloat < 1 || portFloat > 65535 ||
         !parseNumber(getText(gUi.inputForward), forwardFloat) || forwardFloat != std::floor(forwardFloat) ||
         forwardFloat < 0 || forwardFloat > 65535 || forwardFloat == portFloat) {
         MessageBoxW(gUi.window, L"ポート番号を確認してください。転送先は0で無効にできます。", L"視線入力", MB_ICONWARNING);
-        return;
+        return false;
     }
     live::Snapshot common{};
     live::Values gain{};
@@ -1556,6 +1578,7 @@ void startInputRelay() {
         }, 5556, int(forwardFloat));
     if (!started) MessageBoxW(gUi.window, L"OSC受信を開始できません。ポートが他のソフトで使用中か確認してください。", L"視線入力", MB_ICONWARNING);
     updateInputStatus();
+    return started;
 }
 
 void updateFrameStatus() {
@@ -1788,18 +1811,17 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
         control(L"STATIC",L"OSC転送先（0=なし）",SS_LEFT,20,190,180,23);
         gUi.inputForward=control(L"EDIT",L"8888",WS_BORDER | ES_NUMBER | WS_TABSTOP,205,186,110,27,kInputForward);
         control(L"STATIC",L"VRCFaceTrackingへ転送する場合は8888",SS_LEFT,335,190,320,23);
-        gUi.inputStart=control(L"BUTTON",L"配信を開始",WS_TABSTOP | BS_PUSHBUTTON,20,240,145,32,kInputStart);
-        gUi.inputStop=control(L"BUTTON",L"停止",WS_TABSTOP | BS_PUSHBUTTON,180,240,105,32,kInputStop);
-        gUi.inputProviderOnly=control(L"BUTTON",L"視線経路だけ起動",WS_TABSTOP | BS_PUSHBUTTON,20,280,180,32,kInputProviderOnly);
+        gUi.inputStart=control(L"BUTTON",L"視線経路を起動",WS_TABSTOP | BS_PUSHBUTTON,20,240,180,32,kInputStart);
+        gUi.inputStop=control(L"BUTTON",L"停止",WS_TABSTOP | BS_PUSHBUTTON,215,240,105,32,kInputStop);
         control(L"STATIC",L"表示倍率",SS_LEFT,350,245,110,23);
         gUi.previewZoom=control(L"COMBOBOX",L"",CBS_DROPDOWNLIST | WS_TABSTOP | WS_VSCROLL,470,240,100,110,kPreviewZoom);
         for(const wchar_t* label:{L"1x",L"2x",L"3x",L"4x"})
             SendMessageW(gUi.previewZoom,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(label));
         gPreviewZoom=readPreviewZoom();
         SendMessageW(gUi.previewZoom,CB_SETCURSEL,gPreviewZoom-1,0);
-        gUi.inputStatus=control(L"EDIT",L"停止中",WS_BORDER | ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | WS_VSCROLL,20,320,650,78,kInputStatus);
-        gUi.liveMonitor=control(L"VrssLiveMonitor",L"",0,20,405,650,225);
-        gUi.sourceNote=control(L"STATIC",L"",SS_LEFT,20,642,650,28);
+        gUi.inputStatus=control(L"EDIT",L"停止中",WS_BORDER | ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | WS_VSCROLL,20,285,650,64,kInputStatus);
+        gUi.liveMonitor=control(L"VrssLiveMonitor",L"",0,20,358,650,290);
+        gUi.sourceNote=control(L"STATIC",L"",SS_LEFT,20,655,650,25);
         gCreatingPanel=3;
         control(L"STATIC",L"Steam Frame / NVIDIA 596.02",SS_LEFT,20,105,650,28);
         control(L"STATIC",L"SteamVRのSteamリンク設定で、他のPCアプリへの視線共有を有効にしてください。",SS_LEFT,20,150,650,48);
@@ -1819,7 +1841,7 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
         updateInputStatus();
         updateFrameStatus();
         SetTimer(window, 1, 1000, nullptr);
-        SetTimer(window, 2, 100, nullptr);
+        SetTimer(window, 2, 50, nullptr);
         showPanel(0);
         return 0;
     }
@@ -1910,25 +1932,21 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                         L"純正サービスを起動しました。視線が戻らない場合は、Pimaxアプリの「サービスを再起動」を実行してください。",
                         L"Pimax視線",MB_ICONINFORMATION);
                     updateInputStatus();
-                } else if (gSelectedSource.load()==1) startInputRelay();
-                else runPortableScript(gSelectedSource.load()==2?L"Start-PSVR2-Toolkit.cmd":
-                    gSelectedSource.load()==3?L"Start-SRanibro.cmd":
-                    gSelectedSource.load()==4?L"Start-Vive-Pro-Eye.cmd":
-                    gSelectedSource.load()==5?L"Start-Vive-Streaming.cmd":
-                    gSelectedSource.load()==6?L"Start-SteamVR-Eye.cmd":L"Start-Varjo.cmd");
+                } else {
+                    const int source=gSelectedSource.load();
+                    if (processCount(L"vrss_gaze_provider.exe")) return 0;
+                    if (source==1 && !gInputRelay.Running() && !startInputRelay()) return 0;
+                    if (!processCount(L"common_vrss_provider.exe")) {
+                        const wchar_t* routes[]={L"",L"Baballonia",L"PSVR2Toolkit",L"SRanibro",
+                            L"ViveProEye",L"ViveStreaming",L"SteamVREye",L"Varjo"};
+                        runPortableScript(L"Start-Provider-Only.cmd",routes[source]);
+                    }
+                }
                 return 0;
-            case kInputProviderOnly: {
-                const int source=gSelectedSource.load();
-                if (source<1 || source>7 || processCount(L"common_vrss_provider.exe") ||
-                    processCount(L"vrss_gaze_provider.exe")) return 0;
-                const wchar_t* routes[]={L"",L"Baballonia",L"PSVR2Toolkit",L"SRanibro",
-                    L"ViveProEye",L"ViveStreaming",L"SteamVREye",L"Varjo"};
-                runPortableScript(L"Start-Provider-Only.cmd",routes[source]);
-                return 0;
-            }
             case kInputStop:
                 if (gSelectedSource.load()==1) gInputRelay.Stop();
-                else if (gSelectedSource.load()>=2) runPortableScript(L"Stop-Provider.cmd");
+                if (gSelectedSource.load()>=1 && processCount(L"common_vrss_provider.exe"))
+                    runPortableScript(L"Stop-Provider.cmd");
                 updateInputStatus(); return 0;
             }
         }
@@ -1947,12 +1965,8 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                 processCount(L"vrss_gaze_provider.exe")!=0,false},backupFolder(),window);
             updateFrameStatus(); updateInputStatus(); return 0; }
         if (wParam == 2) {
-            if (gLive.vendor) {
-                std::array<float, 4> location{};
-                if (gPimaxGaze.Read(location)) { gPimaxLocation=location; gPimaxFreshAt=GetTickCount64(); }
-                if (gNvidiaQueue.Read(location)) { gNvidiaLocation=location; gNvidiaFreshAt=GetTickCount64(); }
-                if (gUi.liveMonitor) InvalidateRect(gUi.liveMonitor,nullptr,FALSE);
-            } else { gPimaxGaze.Close(); gNvidiaQueue.Close(); gPimaxFreshAt=0; gNvidiaFreshAt=0; }
+            updateGazeMap();
+            if (!gLive.vendor) { gPimaxGaze.Close(); gNvidiaQueue.Close(); gPimaxFreshAt=0; gNvidiaFreshAt=0; }
             return 0;
         }
         break;

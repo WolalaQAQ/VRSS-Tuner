@@ -5,6 +5,8 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <array>
+#include <cstring>
 #include "third_party/openvr/openvr.h"
 
 namespace fs=std::filesystem;
@@ -76,6 +78,37 @@ static int LastSource() {
     return source.size()==1 && source[0]>='0' && source[0]<='7'?source[0]-'0':-1;
 }
 
+static bool SameBytes(const fs::path& first,const fs::path& second) {
+    std::error_code error;
+    if(!fs::is_regular_file(second,error) ||
+       fs::file_size(first,error)!=fs::file_size(second,error) || error)return false;
+    std::ifstream a(first,std::ios::binary),b(second,std::ios::binary);
+    if(!a || !b)return false;
+    std::array<char,65536> x{},y{};
+    do {
+        a.read(x.data(),x.size());b.read(y.data(),y.size());
+        if(a.gcount()!=b.gcount() || std::memcmp(x.data(),y.data(),size_t(a.gcount()))!=0)return false;
+    } while(a.gcount()>0);
+    return a.eof() && b.eof();
+}
+
+static void RepairSteamBridge(const fs::path& bundle) {
+    // VRChat holds the launch wrapper open until the game exits. Installer
+    // upgrades leave that copy alone; the next SteamVR start repairs it.
+    if(Running(L"VRChat.exe") || Running(L"steam_vrchat_launch.exe"))return;
+    wchar_t local[32768]{};
+    DWORD size=GetEnvironmentVariableW(L"LOCALAPPDATA",local,DWORD(std::size(local)));
+    if(!size || size>=std::size(local))return;
+    const auto destination=fs::path(local)/L"VRSS Tuner"/L"SteamLaunch";
+    if(!fs::is_directory(destination))return;
+    for(const auto* name:{L"steam_vrchat_launch.exe",L"openvr_api.dll"}) {
+        const auto source=bundle/name,target=destination/name;
+        if(fs::is_regular_file(source) && !SameBytes(source,target) &&
+           !CopyFileW(source.c_str(),target.c_str(),FALSE))
+            std::cerr<<"Steam launch bridge update deferred: "<<GetLastError()<<'\n';
+    }
+}
+
 int wmain(int argc,wchar_t** argv) {
     if(argc==2 && wcscmp(argv[1],L"--install")==0)return Configure(true);
     if(argc==2 && wcscmp(argv[1],L"--remove")==0)return Configure(false);
@@ -84,6 +117,7 @@ int wmain(int argc,wchar_t** argv) {
     if(bundle.empty())return 3;
     const auto tuner=bundle/L"VRSS Tuner.exe";
     if(!fs::is_regular_file(tuner))return 5;
+    RepairSteamBridge(bundle);
     if(!Running(L"VRSS Tuner.exe") &&
        reinterpret_cast<INT_PTR>(ShellExecuteW(nullptr,L"open",tuner.c_str(),nullptr,bundle.c_str(),SW_SHOWNORMAL))<=32)
         return 6;

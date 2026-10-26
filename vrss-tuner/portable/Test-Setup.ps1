@@ -20,6 +20,30 @@ $reasons = [Collections.Generic.List[string]]::new()
 $integrity = $true
 $manifest = Get-Content -LiteralPath (Join-Path $bundle 'bundle-manifest.json') -Raw | ConvertFrom-Json
 $bundleFull = [IO.Path]::GetFullPath($bundle).TrimEnd('\') + '\'
+# An installer upgrade can run while the provider is connected to VRChat.
+# In that case its executable and OpenVR DLL remain in use. Apply only
+# manifest-verified staged files after the old provider has exited.
+$stagedProvider = Join-Path $bundle 'updates\common_vrss_provider.exe'
+if (Test-Path -LiteralPath $stagedProvider -PathType Leaf) {
+    foreach ($name in @('common_vrss_provider.exe','openvr_api.dll')) {
+        $relative = 'common-vrss-provider/' + $name
+        $entry = @($manifest.files | Where-Object { $_.path -eq $relative })
+        $staged = Join-Path $bundle ('updates\' + $name)
+        $target = Join-Path $bundle ('common-vrss-provider\' + $name)
+        if ($entry.Count -ne 1 -or -not (Test-Path -LiteralPath $staged -PathType Leaf) -or
+            (Get-PortableSha256 $staged) -ne $entry[0].sha256) {
+            $integrity = $false
+            $reasons.Add("Staged provider update is missing or changed: $name")
+            continue
+        }
+        if (-not (Get-Process common_vrss_provider -ErrorAction SilentlyContinue) -and
+            (-not (Test-Path -LiteralPath $target -PathType Leaf) -or
+             (Get-PortableSha256 $target) -ne $entry[0].sha256)) {
+            try { Copy-Item -LiteralPath $staged -Destination $target -Force -ErrorAction Stop }
+            catch { $integrity = $false; $reasons.Add("Staged provider update could not be applied: $name") }
+        }
+    }
+}
 foreach ($entry in $manifest.files) {
     $path = [IO.Path]::GetFullPath((Join-Path $bundle $entry.path))
     if (-not $path.StartsWith($bundleFull, [StringComparison]::OrdinalIgnoreCase) -or

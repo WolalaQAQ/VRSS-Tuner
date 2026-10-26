@@ -62,16 +62,25 @@ try {
     }
 } finally { $archive.Dispose() }
 
+$setupResult = & (Join-Path $here 'Build-Installer.ps1') -Bundle $artifact.Bundle | Select-Object -Last 1
+if (-not $setupResult -or -not (Test-Path -LiteralPath $setupResult.Installer -PathType Leaf)) {
+    throw 'Installer build did not return an executable.'
+}
 $zipHash = (Get-FileHash -LiteralPath $artifact.Zip -Algorithm SHA256).Hash
+$setupHash = (Get-FileHash -LiteralPath $setupResult.Installer -Algorithm SHA256).Hash
 $stem = [IO.Path]::GetFileNameWithoutExtension($artifact.Zip)
 $sums = Join-Path $release "$stem.SHA256SUMS.txt"
-[IO.File]::WriteAllText($sums, "$zipHash  $([IO.Path]::GetFileName($artifact.Zip))`n", [Text.Encoding]::ASCII)
+[IO.File]::WriteAllText($sums,
+    "$setupHash  $([IO.Path]::GetFileName($setupResult.Installer))`n$zipHash  $([IO.Path]::GetFileName($artifact.Zip))`n",
+    [Text.Encoding]::ASCII)
 $revision = (& git -C $research rev-parse HEAD).Trim()
 $report = Join-Path $release "$stem.release-candidate.json"
 [ordered]@{
     format = 1
     sourceRevision = $revision
     builtAt = (Get-Date).ToString('o')
+    installer = [IO.Path]::GetFileName($setupResult.Installer)
+    installerSha256 = $setupHash
     zip = [IO.Path]::GetFileName($artifact.Zip)
     sha256 = $zipHash
     verifiedFiles = $listed.Count
@@ -79,4 +88,4 @@ $report = Join-Path $release "$stem.release-candidate.json"
     pimaxBridgeInputSha256 = (Get-FileHash -LiteralPath (Join-Path $artifact.Bundle 'pimax-eye-bridge\driver_sranibro_eye.dll') -Algorithm SHA256).Hash
     varjoBridgeInputSha256 = (Get-FileHash -LiteralPath (Join-Path $artifact.Bundle 'varjo-gaze-bridge\varjo_gaze_bridge.exe') -Algorithm SHA256).Hash
 } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $report -Encoding UTF8
-[pscustomobject]@{Zip=$artifact.Zip;Sha256=$zipHash;VerifiedFiles=$listed.Count;Report=$report;Checksums=$sums;Tests=$testLog}
+[pscustomobject]@{Installer=$setupResult.Installer;InstallerSha256=$setupHash;Zip=$artifact.Zip;ZipSha256=$zipHash;VerifiedFiles=$listed.Count;Report=$report;Checksums=$sums;Tests=$testLog}

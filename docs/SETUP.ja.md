@@ -13,9 +13,9 @@ Pimax純正経路と共通プロバイダー経路の起動手順です。NVIDIA
 
 ## 導入手順
 
-1. [Releases](https://github.com/challenger0303/VRSS-Tuner/releases)からWindowsインストーラーを取得します。手動検証用にはポータブルZIP全体を展開できます。Tunerを開き、右上で言語を選びます。
+1. [Releases](https://github.com/challenger0303/VRSS-Tuner/releases)からWindowsインストーラーを取得します。ポータブルZIPは開発・手動診断用です。Tunerを開き、右上で言語を選びます。
 2. **Pimax純正XR5を使う場合：** HMDとPimaxの視線機能を有効にし、Tunerの「視線入力」で「Pimax経路（純正優先）」を選びます。「画質」でVRSSをオンにして適用し、SteamVRとVRChatを通常どおり起動します。共通プロバイダー用の起動スクリプトは使いません。
-3. **SRanibro・PSVR2 Toolkitなどの共通経路を使う場合：** HMDと対応する視線ソフトを起動し、SteamVRを接続します。Tunerの「視線入力」で入力元を一つ選び、「画質」でVRSSをオンにして適用します。「視線経路だけ起動」を押すと、導入診断とプロバイダー起動だけを行い、VRChatには触れません。Windowsの管理者確認は手動で承認してください。VRChatは後から自分で起動できます。
+3. **SRanibro・PSVR2 Toolkitなどの共通経路を使う場合：** HMDと対応する視線ソフトを起動し、SteamVRを接続します。Tunerの「視線入力」で入力元を一つ選び、「画質」でVRSSをオンにして適用します。「視線経路を起動」を押すと、導入診断とプロバイダー起動だけを行い、VRChatには触れません。Windowsの管理者確認は手動で承認してください。VRChatは後から自分で起動できます。
 4. **Steam Frameの場合：** 上記の共通起動ボタンではなく、[Frame専用手順](STEAM-FRAME.md)に従います。
 5. VRChatの「設定 → グラフィック」でMSAAを有効にします。比較にはx4から始め、HMD内で高画質領域が両目に現れ、視線の左右・上下に追従するか確認します。Tunerの緑の表示だけでは実際の画質変化は証明できません。
 6. 共通経路の終了時は`Stop-Provider.cmd`を実行します。VRChat、SteamVR、ベンダーのプロバイダーは終了しません。Pimax純正経路ではこのスクリプトは不要です。
@@ -24,7 +24,7 @@ Pimax純正経路と共通プロバイダー経路の起動手順です。NVIDIA
 
 固定HMDキーを使う構成でVRChatを後から起動する場合は、先にプロバイダーを起動し、`Start-VRChat-HMD-Key.cmd`を実行します。Steamの通常の起動ボタンを使いたい場合は、`Install-Steam-Launch-Bridge.cmd`の表示する起動オプションをSteamの「VRChat → プロパティ → 一般」に一度設定します。ブリッジはVRChat起動時にHMDを照合し、固定IDならプロバイダーの起動前でもIDを予約します。実行中のVRChatのID自体は変更できませんが、このPCでは同じ保護付きVRChatプロセスにプロバイダーを停止・再接続できました。
 
-SteamVRとの同時起動にはインストーラー版を使います。固定のユーザー用Programsフォルダーに配置し、SteamVRが既に起動していれば自動起動を登録します。登録が保留された場合は、SteamからSteamVRを通常起動し、インストール先の`Install-SteamVR-Autostart.cmd`を一度実行してください。インストーラーはSteamVRを起動しません。以後SteamVRがTunerと選択中の共通視線経路の起動を試みます。管理者確認が出る場合は手動で承認してください。このPCでインストールと登録は確認しましたが、今回のインストーラー導入後のSteamVR再起動はまだ確認していません。
+SteamVRとの同時起動にはインストーラー版を使います。固定のユーザー用Programsフォルダーに配置し、SteamVRが既に起動していれば自動起動を登録します。登録が保留された場合は、SteamからSteamVRを通常起動し、インストール先の`Install-SteamVR-Autostart.cmd`を一度実行してください。インストーラーはSteamVRを起動しません。以後SteamVRがTunerと選択中の共通視線経路の起動を試みます。管理者確認が出る場合は手動で承認してください。このPCではSteam経由のSteamVR再起動後にTunerとSRanibro経路が自動起動し、VRChatが受信しました。Tunerだけを閉じてもVRChatと視線プロバイダーは動作を続け、開き直すと状態と操作を復元できます。起動中のアップグレードではプロバイダーとVRChat起動ブリッジを保持します。新しいプロバイダーは次の経路起動時に、ブリッジはゲーム終了後の次回SteamVR起動時に更新されます。
 
 ## Tunerの動作表示
 

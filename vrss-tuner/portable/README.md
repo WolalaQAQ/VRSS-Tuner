@@ -9,10 +9,10 @@ NVIDIA VRSS2の設定と視線入力を扱うWindows用の試験版です。ZIP�
 1. ZIPを**丸ごと展開**して`VRSS Tuner.exe`を開き、右上で日本語を選びます。NVIDIAドライバー、HMDの視線ソフト、SteamVR、VRChatは別途必要です。
 2. **Pimax純正XR5**なら、Pimaxの視線機能を有効にし、Tunerで「Pimax経路（純正優先）」と「VRSSオン」を選んで適用します。`Start-Provider.cmd`や共通経路用の`Test-Setup.cmd`は不要です。
 3. **Steam Frame**なら、下のFrame専用手順を使います。共通経路の起動スクリプトは使いません。
-4. **その他の視線入力**なら、HMDと視線ソフトを起動し、TunerでVRSSをオンにして入力元を選び、「共通経路＋VRChatを起動」を押します。VRChatが動作中なら後付け接続を先に試し、NVIDIAの受信側が見つからない場合だけ通常終了・再起動します。必要ならSteamVRも起動します。Windowsの管理者確認だけは手動で承認してください。
+4. **その他の視線入力**なら、HMDと視線ソフトを起動し、TunerでVRSSをオンにして入力元を選び、「視線経路を起動」を押します。共通プロバイダーを起動しますが、VRChatは起動・終了しません。必要ならSteam経由でSteamVRを起動します。Windowsの管理者確認だけは手動で承認してください。
 5. VRChatのグラフィック設定でMSAAを有効にし、HMD内で両目の高画質領域が視線に追従するか確認します。Tunerの緑の表示だけでは画質の変化は確認できません。
 
-VRChatを後から自分で起動したいときは「視線経路だけ起動」を押します。固定ID構成では`Start-VRChat-HMD-Key.cmd`で後から起動するか、`Install-Steam-Launch-Bridge.cmd`の案内に従ってSteamのVRChat起動オプションを一度設定してください。通常起動ブリッジはVRChat起動時にHMDを照合し、固定IDの構成ではプロバイダーがまだ起動途中でもIDを予約します。後から視線経路を再接続できます。SteamVRとの同時起動にはインストーラー版を使ってください。インストーラーはSteamVRを起動せず、Steamから既に起動している場合だけ自動起動登録を行います。管理者確認が出たら手動で承認してください。
+視線経路を起動した後に、VRChatを自分で起動できます。固定ID構成では`Start-VRChat-HMD-Key.cmd`で後から起動するか、`Install-Steam-Launch-Bridge.cmd`の案内に従ってSteamのVRChat起動オプションを一度設定してください。通常起動ブリッジはVRChat起動時にHMDを照合し、固定IDの構成ではプロバイダーがまだ起動途中でもIDを予約します。後から視線経路を再接続できます。SteamVRとの同時起動にはインストーラー版を使ってください。インストーラーはSteamVRを起動せず、Steamから既に起動している場合だけ自動起動登録を行います。管理者確認が出たら手動で承認してください。
 
 他のPCや未検証HMDでの動作は保証していません。共通経路では監査済みドライバー実体と、VRSSを許可するNVIDIAのVRChatプロファイルが必要です。診断が失敗した場合は、その理由を確認してください。
 
@@ -35,7 +35,7 @@ Frameでは旧来のEDID診断やStart-Providerを使わず、[Frame専用手順
 | Steam Link経由のQuest Proなどの実験用SteamVR入力 | SteamVR視線アクション（実機未検証） | PCへの視線共有を有効にして`Start-SteamVR-Eye.cmd`を実行。単一の注視点を左右へ投影します。Steam Frameには上記の専用タブを使います |
 | Varjo XR-4 / Aero / XR-3 / VR-3 | Varjo Native SDK（実機未検証） | Varjo Baseを起動し、`Start-Varjo.cmd`を実行。インストール済み`VarjoLib.dll`が必要です |
 
-これらの起動スクリプトは、Tunerの「共通経路＋VRChatを起動」ボタンからも開けます。`Start-Provider.cmd`はプロバイダーだけを起動する手動診断用です。VIVEのDLLが標準の導入先にないときは、`VRSS_VIVE_SDK_DLL`環境変数に`SRanipal.dll`または`VS_PC_SDK.dll`のフルパスを指定してください。VarjoのDLLが見つからない場合は`VRSS_VARJO_DLL`にインストール済み`VarjoLib.dll`のフルパスを指定します。ベンダーDLLは同梱しません。Pro Eyeは片目だけ有効なフレームでも、その視線方向を両目へ投影します。VIVE・SteamVR視線アクション・Varjoはコードと模擬入力での確認にとどまり、VRChat内の追従は未検証です。Varjoの倍率は起動時に読み込み、目別の角度オフセットはまだ反映しません。
+Tunerの「視線経路を起動」ボタンは選択中の入力元に対応したプロバイダー起動スクリプトを開きます。BaballoniaではOSC転送も開始します。`Start-Provider.cmd`は手動診断用です。VIVEのDLLが標準の導入先にないときは、`VRSS_VIVE_SDK_DLL`環境変数に`SRanipal.dll`または`VS_PC_SDK.dll`のフルパスを指定してください。VarjoのDLLが見つからない場合は`VRSS_VARJO_DLL`にインストール済み`VarjoLib.dll`のフルパスを指定します。ベンダーDLLは同梱しません。Pro Eyeは片目だけ有効なフレームでも、その視線方向を両目へ投影します。VIVE・SteamVR視線アクション・Varjoはコードと模擬入力での確認にとどまり、VRChat内の追従は未検証です。Varjoの倍率は起動時に読み込み、目別の角度オフセットはまだ反映しません。
 
 視線入力タブの4段階は、選んだHMDだけでなく実際に稼働している経路を監視します。緑はその段階の観測成功、橙は起動中だが次の確認が必要、灰色は停止またはデータ待ちです。BaballoniaではOSC受信と転送、SRanibro・PSVR2 Toolkit・VIVE・SteamVR視線アクション・Varjoでは視線アプリ／ブリッジの起動と新しい視線が共通プロバイダーに届いたこと、さらにプロバイダー登録とNVIDIAの受理を別々に表示します。選択中と稼働中の経路が違えば、その両方を表示します。緑の最終段階もVRSSの画質変化そのものの証明ではありません。
 

@@ -349,7 +349,7 @@ int RunVrssProvider(int argc,wchar_t** argv,const std::function<bool()>& keepRun
         SetConsoleCtrlHandler(Control,TRUE);
         const double seconds=args.count(L"--seconds")?std::stod(args.at(L"--seconds")):1200;
         if(seconds<=0||seconds>86400)throw std::runtime_error("Duration must be 1..86400 seconds");
-        const auto started=Clock::now();auto next=started,nextStatus=started,nextConfig=started;
+        const auto started=Clock::now();auto next=started,nextStatus=started,nextLog=started,nextConfig=started;
         uint64_t sent=0,freshCount=0,activeCount=0,failed=0,lastSequence=0,lastQpc=0;
         const bool ownerLifetime=frameInput && bool(keepRunning);
         while(running && (!keepRunning || keepRunning()) &&
@@ -405,8 +405,12 @@ int RunVrssProvider(int argc,wchar_t** argv,const std::function<bool()>& keepRun
                 for(int i=0;i<4;++i)state<<(i?",":"")<<location[i];
                 state<<"],\"xGain\":"<<gain.x<<",\"yGain\":"<<gain.y<<",\"source\":\""<<(frameInput?"steam-frame-openvr":udp?"normalized-udp":"brokeneye-tcp")<<"\"}";
                 state.close();MoveFileExW((output/"status.tmp").c_str(),(output/"status.json").c_str(),MOVEFILE_REPLACE_EXISTING);
-                csv.flush();std::cout<<"fresh="<<fresh<<" consumer="<<consumer.count<<" sent="<<sent<<" failures="<<failed<<'\n';
-                nextStatus=now+std::chrono::seconds(1);
+                nextStatus=now+std::chrono::milliseconds(50);
+            }
+            if(now>=nextLog) {
+                if(csv.is_open())csv.flush();
+                std::cout<<"fresh="<<fresh<<" consumer="<<consumer.count<<" sent="<<sent<<" failures="<<failed<<'\n';
+                nextLog=now+std::chrono::seconds(1);
             }
             next+=std::chrono::milliseconds(10);if(next<Clock::now())next=Clock::now();std::this_thread::sleep_until(next);
         }
