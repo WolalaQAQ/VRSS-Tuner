@@ -7,7 +7,7 @@ This guide covers the standard provider route. Steam Frame on NVIDIA 596.02 uses
 ## Tested configuration and limits
 
 - Headset confirmed with the developer's live visual check: **Pimax Dream Air**.
-- GPU/driver in that setup: GeForce RTX 5090, NVIDIA driver 610.88. The provider checks the exact hashes of the audited `nvapi64_impl.dll` and `nvwgf2umx.dll`, not just the displayed driver version. Other driver builds are refused.
+- GPU/driver in that setup: GeForce RTX 5090, NVIDIA driver 610.88. The provider checks the exact hashes and gaze-handler methods of the audited `nvapi64_impl.dll` and `nvwgf2umx.dll`, not just the displayed driver version. An explicit experimental contract for another exact image pair is described in [driver contracts](DRIVER-CONTRACTS.md); unmatched builds are refused.
 - SteamVR/OpenVR headset geometry, a readable NVIDIA VRChat profile with the VRSS allow setting, binocular gaze from Baballonia OSC, and MSAA enabled inside VRChat are required for this route.
 - Other headsets, PCs, driver builds, and OSC sources have not been verified. The setup checker can identify prerequisites but cannot prove a visible, moving foveated region.
 
@@ -47,7 +47,7 @@ The bundled `common-vrss-provider/calibration.txt` starts with zero per-eye offs
 
 | Setup result or symptom | What to check |
 | --- | --- |
-| `driverSupported: false` | The installed NVIDIA binaries differ from the audited 610.88 build. This release intentionally refuses private ABI calls on unknown binaries. |
+| `driverSupported: false` | The installed NVIDIA binaries or gaze-handler methods do not match a built-in or explicitly selected experimental contract. Use `Audit-Driver.cmd` to collect a read-only report; do not assume a matching marketing version is sufficient. |
 | `vrssAllowed: false` | The NVIDIA VRChat profile lacks the VRSS allow setting. This package does not fabricate or replace that profile. |
 | `steamVrRunning: false` or `hmdGeometryValid: false` | Connect the HMD, start SteamVR, then rerun the check. |
 | Official provider is running | Use that route, or stop it through the vendor's normal controls before using the common provider. The script never stops it automatically. |

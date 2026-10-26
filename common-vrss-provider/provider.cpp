@@ -2,12 +2,14 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include "private_contract.h"
+#include "driver_contract_file.h"
 #include "projection.h"
 #include "gaze_state.h"
 #include "config_io.h"
 #include "OpenVrFrameSource.h"
 #include "ProviderEntry.h"
 #include <atomic>
+#include <cwchar>
 #include <filesystem>
 #include <map>
 #include <memory>
@@ -117,6 +119,7 @@ public:
 };
 struct NvidiaSession {
     ID3D11Device* device=nullptr; ID3D11DeviceContext* context=nullptr; ID3DNvGazeHandler* gaze=nullptr;
+    std::optional<driver::Identity> additional;
     const driver::Identity* identity=nullptr;
     UnregisterProvider unregisterFn=nullptr;bool registered=false,initialized=false;
     ~NvidiaSession() {
@@ -125,7 +128,7 @@ struct NvidiaSession {
         if(initialized)NvAPI_Unload();
     }
 };
-static void InitializeVerifiedDriver(NvidiaSession& nv) {
+static void InitializeNvidiaRuntime(NvidiaSession& nv) {
     D3D_FEATURE_LEVEL level{};
     HRESULT hr=D3D11CreateDevice(nullptr,D3D_DRIVER_TYPE_HARDWARE,nullptr,0,nullptr,0,
         D3D11_SDK_VERSION,&nv.device,&level,&nv.context);
@@ -133,11 +136,39 @@ static void InitializeVerifiedDriver(NvidiaSession& nv) {
     const int status=NvAPI_Initialize();
     if(status)throw std::runtime_error("NVIDIA initialization failed: "+std::to_string(status));
     nv.initialized=true;
+}
+static std::optional<driver::Identity> LoadExperimentalContract() {
+    wchar_t path[32768]{};
+    const DWORD length=GetEnvironmentVariableW(L"VRSS_EXPERIMENTAL_DRIVER_CONTRACT",path,32768);
+    if(!length)return std::nullopt;
+    if(length>=32768)throw std::runtime_error("Experimental contract path is too long");
+    const fs::path filePath(path);
+    if(!filePath.is_absolute())throw std::runtime_error("Experimental contract path must be absolute");
+    std::ifstream file(filePath,std::ios::binary|std::ios::ate);
+    if(!file||file.tellg()<=0||file.tellg()>4096)
+        throw std::runtime_error("Experimental contract file is missing or too large");
+    file.seekg(0);
+    std::string body((std::istreambuf_iterator<char>(file)),{});
+    auto parsed=driver::ParseExactContract(body);
+    if(!parsed)throw std::runtime_error("Experimental contract format is invalid");
+    return parsed;
+}
+static void InitializeVerifiedDriver(NvidiaSession& nv) {
+    InitializeNvidiaRuntime(nv);
     const auto api=HashModule(L"nvapi64.dll"),impl=HashModule(L"nvapi64_impl.dll"),
         umd=HashModule(L"nvwgf2umx.dll");
     nv.identity=driver::Select(api,impl,umd);
+    if(!nv.identity) {
+        nv.additional=LoadExperimentalContract();
+        if(nv.additional) {
+            if(!driver::MatchesExactImages(*nv.additional,api,impl,umd))
+                throw std::runtime_error("Experimental contract does not match installed NVAPI and UMD images");
+            nv.identity=&*nv.additional;
+        }
+    }
     if(!nv.identity)throw std::runtime_error("Unsupported driver image: private ABI refused");
     std::cout<<"driverTarget="<<nv.identity->version<<'\n';
+    std::cout<<"driverContract="<<(nv.additional?"experimental":"audited")<<'\n';
 }
 static void CreateGazeHandler(NvidiaSession& nv,float horizontalFov,float verticalFov) {
     NV_GAZE_HANDLER_INIT_PARAMS init{};init.version=NV_GAZE_HANDLER_INIT_PARAMS_VER;
@@ -146,8 +177,60 @@ static void CreateGazeHandler(NvidiaSession& nv,float horizontalFov,float vertic
     const int status=NvAPI_D3D_InitializeNvGazeHandler(nv.device,&init);
     if(status||!nv.gaze)throw std::runtime_error("Gaze handler initialization failed: "+std::to_string(status));
 }
+static bool ExecutableAddress(uintptr_t address) {
+    MEMORY_BASIC_INFORMATION page{};
+    if(!VirtualQuery(reinterpret_cast<const void*>(address),&page,sizeof(page)) || page.State!=MEM_COMMIT)
+        return false;
+    const DWORD protection=page.Protect&0xff;
+    return protection==PAGE_EXECUTE || protection==PAGE_EXECUTE_READ ||
+        protection==PAGE_EXECUTE_READWRITE || protection==PAGE_EXECUTE_WRITECOPY;
+}
+static void AuditDriverWithoutRegistration() {
+    NvidiaSession nv;
+    InitializeNvidiaRuntime(nv);
+    const auto api=HashModule(L"nvapi64.dll"),impl=HashModule(L"nvapi64_impl.dll"),
+        umd=HashModule(L"nvwgf2umx.dll");
+    std::cout<<"nvapi64Sha256="<<api<<'\n'
+             <<"nvapi64ImplSha256="<<impl<<'\n'
+             <<"nvwgf2umxSha256="<<umd<<'\n';
+    const auto known=driver::Select(api,impl,umd);
+    std::cout<<"knownContract="<<(known?known->version:"none")<<'\n';
+    // Initialize only the public NVAPI gaze handler. Do not call the private
+    // challenge, registration, listener, consumer-query, or submission methods.
+    CreateGazeHandler(nv,90.0f,90.0f);
+    uintptr_t table=0;
+    std::memcpy(&table,nv.gaze,sizeof(table));
+    for(const wchar_t* name : {L"nvapi64.dll",L"nvapi64_impl.dll"}) {
+        const auto module=GetModuleHandleW(name);
+        MODULEINFO image{};
+        if(!module||!GetModuleInformation(GetCurrentProcess(),module,&image,sizeof(image)))continue;
+        const auto base=reinterpret_cast<uintptr_t>(module);
+        constexpr auto bytes=sizeof(uintptr_t)*8;
+        if(!base||image.SizeOfImage<bytes||table<base||table-base>image.SizeOfImage-bytes)continue;
+        std::array<uintptr_t,8> methods{};
+        std::memcpy(methods.data(),reinterpret_cast<const void*>(table),sizeof(methods));
+        std::cout<<"vtableModule="<<(std::wcscmp(name,L"nvapi64.dll")==0?"nvapi64.dll":"nvapi64_impl.dll")<<'\n'
+                 <<"vtableRva=0x"<<std::hex<<(table-base)<<std::dec<<'\n';
+        std::cout<<"methodRvas=";
+        bool allInImage=true,allExecutable=true;
+        for(size_t i=0;i<methods.size();++i) {
+            if(i)std::cout<<',';
+            if(methods[i]<base||methods[i]-base>=image.SizeOfImage) {
+                std::cout<<"OUTSIDE_IMAGE";allInImage=false;
+            } else std::cout<<"0x"<<std::hex<<(methods[i]-base)<<std::dec;
+            if(!ExecutableAddress(methods[i]))allExecutable=false;
+        }
+        std::cout<<"\nmethodsInImage="<<allInImage<<'\n'
+                 <<"methodsExecutable="<<allExecutable<<'\n';
+        if(!allInImage||!allExecutable)
+            throw std::runtime_error("Gaze methods are outside executable NVAPI code");
+        std::cout<<"DRIVER_AUDIT_PASS no_private_calls\n";
+        return;
+    }
+    throw std::runtime_error("Gaze vtable is outside loaded NVAPI modules; no contract candidate emitted");
+}
 static std::array<uintptr_t,8> VerifiedGazeMethods(const NvidiaSession& nv) {
-    const auto module=GetModuleHandleW(nv.identity->module);
+    const auto module=GetModuleHandleW(nv.identity->module.c_str());
     const auto base=reinterpret_cast<uintptr_t>(module);
     MODULEINFO image{};
     uintptr_t table=0;
@@ -160,6 +243,8 @@ static std::array<uintptr_t,8> VerifiedGazeMethods(const NvidiaSession& nv) {
     std::memcpy(methods.data(),reinterpret_cast<const void*>(table),sizeof(methods));
     if(!driver::MethodsMatch(*nv.identity,base,methods))
         throw std::runtime_error("Gaze vtable method mismatch: private calls refused");
+    for(auto address:methods)if(!ExecutableAddress(address))
+        throw std::runtime_error("Gaze vtable method is not executable: private calls refused");
     return methods;
 }
 struct ConsumerQuery {uint32_t version=0x10028,pad=0;uint64_t count=0,a=0,b=0,c=0;};
@@ -172,9 +257,14 @@ int RunVrssProvider(int argc,wchar_t** argv,const std::function<bool()>& keepRun
     try {
         std::map<std::wstring,std::wstring> args;
         for(int i=1;i+1<argc;i+=2) args[argv[i]]=argv[i+1];
+        if(args.count(L"--driver-audit") && args.at(L"--driver-audit")==L"1") {
+            AuditDriverWithoutRegistration();return 0;
+        }
         if(args.count(L"--driver-check-only") && args.at(L"--driver-check-only")==L"1") {
             NvidiaSession nv;InitializeVerifiedDriver(nv);
-            std::cout<<"DRIVER_CHECK_PASS exact audited images\n";return 0;
+            CreateGazeHandler(nv,90.0f,90.0f);
+            VerifiedGazeMethods(nv);
+            std::cout<<"DRIVER_CHECK_PASS exact images and method table\n";return 0;
         }
         const bool frameInput=args.count(L"--source") && args.at(L"--source")==L"openvr";
         const bool frameSession=args.count(L"--frame-session") && args.at(L"--frame-session")==L"1";

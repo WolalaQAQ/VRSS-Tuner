@@ -45,6 +45,6 @@ VRCFaceTrackingなどとの共存条件は[フェイストラッキング共存�
 
 ## 制約とファイル
 
-共通プロバイダーは監査済みNVIDIAドライバー画像のSHA-256が一致するときだけ起動します。別の版は拒否します。VRChatプロファイルのVRSS許可フラグも必要です。MSAA、有効な両目視線、HMD別の補正が揃って初めて実機で確認できます。視線補正の初期値は`common-vrss-provider/calibration.txt`からコピーされ、変更後の値は`%LOCALAPPDATA%\VRSS Tuner\common-calibration.txt`に保持されます。診断とログも同じフォルダーに保存されます。
+共通プロバイダーには監査済みのドライバー実体が2組内蔵されています。別の版は`Audit-Driver.cmd`でDLLのハッシュとメソッド位置を非公開登録なしで採取できます。ABIを別途確認した上級者向けに、[DRIVER-CONTRACTS.md](DRIVER-CONTRACTS.md)の実験用契約ファイルで完全一致の実体を明示的に追加できます。未登録の実体は拒否します。VRChatプロファイルのVRSS許可フラグも必要です。MSAA、有効な両目視線、HMD別の補正が揃って初めて実機で確認できます。視線補正の初期値は`common-vrss-provider/calibration.txt`からコピーされ、変更後の値は`%LOCALAPPDATA%\VRSS Tuner\common-calibration.txt`に保持されます。診断とログも同じフォルダーに保存されます。
 
 本プロジェクトのコードはMITライセンスです。OpenVR、NVAPI、PSVR2 Toolkitのヘッダーに適用される条件は同梱の各ライセンス文書を参照してください。NVIDIA、Pimax、Sony、Valve、VRChatの公式製品ではありません。

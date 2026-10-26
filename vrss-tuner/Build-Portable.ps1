@@ -80,7 +80,7 @@ if (Test-Path -LiteralPath $pimaxBuilt -PathType Leaf) {
     if ($RequireAllBridges) { throw "Required Pimax eye bridge is missing: $pimaxBuilt" }
     Write-Warning 'Pimax eye-device bridge is not bundled; supply -PimaxBridgeDll if needed.'
 }
-foreach ($name in @('Test-Setup.ps1','Start-Provider.ps1','Stop-Provider.ps1','Start-VRChat-Candidate.ps1','Test-Setup.cmd','Start-Provider.cmd','Stop-Provider.cmd','Start-VRChat-Candidate.cmd','Start-PSVR2-Toolkit.cmd','Start-SRanibro.cmd','Start-Vive-Pro-Eye.cmd','Start-Vive-Streaming.cmd','Start-SteamVR-Eye.cmd','Start-Varjo.cmd')) {
+foreach ($name in @('Audit-Driver.ps1','Test-Setup.ps1','Start-Provider.ps1','Stop-Provider.ps1','Start-VRChat-Candidate.ps1','Audit-Driver.cmd','Test-Setup.cmd','Start-Provider.cmd','Stop-Provider.cmd','Start-VRChat-Candidate.cmd','Start-PSVR2-Toolkit.cmd','Start-SRanibro.cmd','Start-Vive-Pro-Eye.cmd','Start-Vive-Streaming.cmd','Start-SteamVR-Eye.cmd','Start-Varjo.cmd')) {
     Copy-Item -LiteralPath (Join-Path $here "portable\$name") -Destination (Join-Path $bundle $name)
 }
 Copy-Item -LiteralPath (Join-Path $here 'portable\README.md') -Destination (Join-Path $bundle 'README.md')
@@ -102,8 +102,8 @@ $files = @('VRSS Tuner.exe','openvr_api.dll','common-vrss-provider/common_vrss_p
     'steamvr-gaze-bridge/steamvr_gaze_bridge.exe','steamvr-gaze-bridge/openvr_api.dll','steamvr-gaze-bridge/eye_actions.json',
     'psvr2-gaze-bridge/psvr2_gaze_bridge.exe','psvr2-gaze-bridge/PSVR2Toolkit-LICENSE.txt',
     'vive-streaming-gaze-bridge/ViveStreamingGazeBridge.exe',
-    'Test-Setup.ps1','Start-Provider.ps1','Stop-Provider.ps1','Start-VRChat-Candidate.ps1',
-    'Test-Setup.cmd','Start-Provider.cmd','Stop-Provider.cmd','Start-VRChat-Candidate.cmd',
+    'Audit-Driver.ps1','Test-Setup.ps1','Start-Provider.ps1','Stop-Provider.ps1','Start-VRChat-Candidate.ps1',
+    'Audit-Driver.cmd','Test-Setup.cmd','Start-Provider.cmd','Stop-Provider.cmd','Start-VRChat-Candidate.cmd',
     'Start-PSVR2-Toolkit.cmd','Start-SRanibro.cmd',
     'Start-Vive-Pro-Eye.cmd','Start-Vive-Streaming.cmd','Start-SteamVR-Eye.cmd','Start-Varjo.cmd',
     'README.md','README.en.md','FACE-TRACKING-COEXISTENCE.md',

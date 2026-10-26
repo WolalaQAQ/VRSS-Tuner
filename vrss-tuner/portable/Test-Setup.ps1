@@ -31,7 +31,7 @@ if ($integrity) {
     $driverOutput = & $provider --driver-check-only 1 2>&1 | Out-String
     $driver = $LASTEXITCODE -eq 0 -and $driverOutput.Contains('DRIVER_CHECK_PASS')
     $driverMessage = $driverOutput.Trim()
-    if (-not $driver) { $reasons.Add('NVIDIA driver image is not one of the audited versions.') }
+    if (-not $driver) { $reasons.Add('NVIDIA driver image or gaze methods do not match an exact contract.') }
 }
 $details = @{}
 if ($integrity) {
@@ -112,7 +112,7 @@ if ($identitySource -in @('candidate-auto','candidate-manual') -and $details['hm
 }
 $reasonsJapanese = @(foreach ($reason in $reasons) {
     switch ($reason) {
-        'NVIDIA driver image is not one of the audited versions.' { 'NVIDIAドライバーが監査済みの版と一致しません。'; break }
+        'NVIDIA driver image or gaze methods do not match an exact contract.' { 'NVIDIAドライバーの実体または視線メソッドが登録済み契約と一致しません。'; break }
         'NVIDIA VRChat profile is not readable.' { 'NVIDIAのVRChatプロファイルを読み取れません。'; break }
         'This VRChat profile does not have the VRSS allow gate enabled.' { 'このVRChatプロファイルではVRSSが許可されていません。'; break }
         'VRSS is Off. Enable it in VRSS Tuner before launching VRChat.' { 'VRSSがオフです。VRChat起動前にTunerでオンにしてください。'; break }

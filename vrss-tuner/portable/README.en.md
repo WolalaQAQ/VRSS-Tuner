@@ -45,6 +45,6 @@ This full release-candidate ZIP includes the Pimax eye bridge at `pimax-eye-brid
 
 ## Limits and files
 
-The common provider launches only for audited NVIDIA driver-image SHA-256 hashes; other versions are refused. The VRChat profile also needs its VRSS allow gate. MSAA, valid binocular gaze, and per-headset calibration are necessary for a live result. Initial calibration is copied from `common-vrss-provider/calibration.txt`; edits persist in `%LOCALAPPDATA%\VRSS Tuner\common-calibration.txt` across portable updates. Diagnostics and logs use the same folder.
+The common provider accepts two built-in audited NVIDIA driver-image pairs. `Audit-Driver.cmd` records a different driver's hashes and method addresses without private registration; after independent ABI review, an advanced tester can opt into an exact experimental contract as described in [DRIVER-CONTRACTS.md](DRIVER-CONTRACTS.md). Other images are refused. The VRChat profile also needs its VRSS allow gate. MSAA, valid binocular gaze, and per-headset calibration are necessary for a live result. Initial calibration is copied from `common-vrss-provider/calibration.txt`; edits persist in `%LOCALAPPDATA%\VRSS Tuner\common-calibration.txt` across portable updates. Diagnostics and logs use the same folder.
 
 Project code is MIT licensed. The bundled OpenVR, NVAPI, and PSVR2 Toolkit header retain their respective license terms in the accompanying license files. This is not an official NVIDIA, Pimax, Sony, Valve, or VRChat product.
