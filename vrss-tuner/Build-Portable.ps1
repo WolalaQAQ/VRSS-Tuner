@@ -10,12 +10,12 @@ $bundle = Join-Path $release ('VRSS-Tuner-Portable-' + $stamp)
 $common = Join-Path $bundle 'common-vrss-provider'
 New-Item -ItemType Directory -Path $common -ErrorAction Stop | Out-Null
 & (Join-Path $here 'build.ps1') -OutputPath (Join-Path $bundle 'VRSS Tuner.exe') -StaticRuntime | Out-Null
+$openvr = Join-Path $research 'third_party\openvr'
 $providerSource = Join-Path $research 'common-vrss-provider\provider.cpp'
 $providerExe = Join-Path $common 'common_vrss_provider.exe'
-$line = 'call "' + $vcvars + '" >nul && cl /nologo /std:c++17 /utf-8 /EHsc /O2 /W4 /MT /I"' + $nvapi + '" /Fo"' + (Join-Path $here 'build\provider.portable.obj') + '" "' + $providerSource + '" /link /LIBPATH:"' + (Join-Path $nvapi 'amd64') + '" /OUT:"' + $providerExe + '"'
+$line = 'call "' + $vcvars + '" >nul && cl /nologo /std:c++17 /utf-8 /EHsc /O2 /W4 /MT /I"' + $nvapi + '" /Fo"' + (Join-Path $here 'build\provider.portable.obj') + '" "' + $providerSource + '" /link "' + (Join-Path $openvr 'openvr_api.lib') + '" /LIBPATH:"' + (Join-Path $nvapi 'amd64') + '" /OUT:"' + $providerExe + '"'
 & cmd.exe /d /c $line
 if ($LASTEXITCODE -ne 0) { throw 'Portable provider build failed' }
-$openvr = Join-Path $research 'third_party\openvr'
 $exportSource = Join-Path $research 'common-vrss-provider\export_openvr_geometry.cpp'
 $exportExe = Join-Path $common 'export_openvr_geometry.exe'
 $line = 'call "' + $vcvars + '" >nul && cl /nologo /std:c++17 /utf-8 /EHsc /O2 /W4 /MT /I"' + $research + '" /Fo"' + (Join-Path $here 'build\export_openvr_geometry.portable.obj') + '" "' + $exportSource + '" /link "' + (Join-Path $openvr 'openvr_api.lib') + '" /OUT:"' + $exportExe + '"'
@@ -28,15 +28,18 @@ foreach ($name in @('Test-Setup.ps1','Start-Provider.ps1','Stop-Provider.ps1','T
 }
 Copy-Item -LiteralPath (Join-Path $here 'portable\README.md') -Destination (Join-Path $bundle 'README.md')
 Copy-Item -LiteralPath (Join-Path $here 'portable\README.en.md') -Destination (Join-Path $bundle 'README.en.md')
+foreach ($name in @('STEAM-FRAME.md','DRIVER-CONTRACTS.md')) {
+    Copy-Item -LiteralPath (Join-Path $research "docs\$name") -Destination (Join-Path $bundle $name)
+}
 Copy-Item -LiteralPath (Join-Path $research 'LICENSE') -Destination (Join-Path $bundle 'LICENSE.txt') -ErrorAction Stop
 Copy-Item -LiteralPath (Join-Path $openvr 'LICENSE') -Destination (Join-Path $bundle 'OpenVR-LICENSE.txt') -ErrorAction Stop
 Copy-Item -LiteralPath (Join-Path $nvapi 'License.txt') -Destination (Join-Path $bundle 'NVAPI-LICENSE.txt')
-$files = @('VRSS Tuner.exe','common-vrss-provider/common_vrss_provider.exe',
+$files = @('VRSS Tuner.exe','openvr_api.dll','common-vrss-provider/common_vrss_provider.exe',
     'common-vrss-provider/export_openvr_geometry.exe','common-vrss-provider/openvr_api.dll',
     'common-vrss-provider/calibration.txt',
     'Test-Setup.ps1','Start-Provider.ps1','Stop-Provider.ps1',
     'Test-Setup.cmd','Start-Provider.cmd','Stop-Provider.cmd','README.md','README.en.md','LICENSE.txt',
-    'OpenVR-LICENSE.txt','NVAPI-LICENSE.txt')
+    'OpenVR-LICENSE.txt','NVAPI-LICENSE.txt','STEAM-FRAME.md','DRIVER-CONTRACTS.md')
 $entries = foreach ($name in $files) {
     [ordered]@{path=$name;sha256=(Get-FileHash -LiteralPath (Join-Path $bundle $name) -Algorithm SHA256).Hash}
 }

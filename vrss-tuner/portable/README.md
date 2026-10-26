@@ -2,7 +2,11 @@
 
 WindowsのNVIDIA VRSS2設定と視線入力を扱う試験版です。日本語／英語はアプリ右上で切り替えられます。ZIPを任意の書き込み可能なフォルダーに展開してください。インストーラーやVisual C++ランタイムの別途導入は不要です。
 
-**実機確認済みHMDはPimax Dream Airのみ**です（GeForce RTX 5090／NVIDIAドライバー610.88の開発環境）。ほかのHMDやPCは未検証です。[詳細な日本語ガイド](https://github.com/challenger0303/VRSS-Tuner/blob/main/docs/SETUP.ja.md)も参照してください。
+**開発者の確認環境はPimax Dream Air**です（GeForce RTX 5090／NVIDIAドライバー610.88）。貢献者が整理前ビルドでSteam Frame／596.02を確認しています。Frameは下記の専用手順を使ってください。[詳細な日本語ガイド](https://github.com/challenger0303/VRSS-Tuner/blob/main/docs/SETUP.ja.md)も参照してください。
+
+## Steam Frame（596.02・実験対応）
+
+Frameでは旧来のEDID診断やStart-Providerを使わず、[Frame専用手順](STEAM-FRAME.md)を使ってください。SteamVRの視線共有を有効にし、VRレイアウト4・MSAAを設定します。VRChatとUnityを閉じてTunerの「Steam Frame」→「接続 / 再試行」を押し、登録後に「VRChatを起動（Frame用）」を使います。上下変換は内蔵済みなので共通補正の初期値はX=1・Y=1です。元のPimax/Baballonia経路は維持しています。
 
 ## 初回の使い方
 

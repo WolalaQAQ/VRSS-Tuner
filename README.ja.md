@@ -4,9 +4,13 @@
 
 VRSS Tunerは、NVIDIA VRSS2の設定と、左右の視線データを共通VRSSプロバイダーへ送るためのWindows用試験ツールです。BaballoniaのOSC視線データを受け取り、OpenVRのHMD投影情報を使って左右別に位置を計算します。VRChatのファイル変更やゲームへのDLL注入は行いません。
 
-**動作確認済みHMD：Pimax Dream Air。** 開発者の環境で確認したもので、他のHMDやPCでの動作は未確認です。NVIDIA、Pimax、Valve、VRChatの公式製品ではありません。
+**確認環境：Pimax Dream Air（開発者・610.88）、Steam Frame（貢献者の整理前ビルド・596.02）。** その他のHMDやPCは未確認です。NVIDIA、Pimax、Valve、VRChatの公式製品ではありません。
 
 ポータブル版にはTuner、共通視線プロバイダー、OpenVR投影情報取得ツール、日英ガイド、読み取り専用の導入診断を同梱しています。監査済みのNVIDIAドライバー（確認環境は610.88）、VRSSを許可するVRChatプロファイル、SteamVR、視線入力、VRChat内のMSAAが必要です。共通プロバイダーは非公開のドライバーインターフェースを使うため、未対応ドライバーでの起動を拒否します。診断合格だけではHMD内の視線追従を証明できません。
+
+## Steam Frame（596.02・実験対応）
+
+Frameでは旧来のEDID診断やStart-Providerを使わず、[Frame専用手順](docs/STEAM-FRAME.md)を使ってください。SteamVRの視線共有を有効にし、VRレイアウト4・MSAAを設定します。VRChatとUnityを閉じてTunerの「Steam Frame」→「接続 / 再試行」を押し、登録後に「VRChatを起動（Frame用）」を使います。上下変換は内蔵済みなので共通補正の初期値はX=1・Y=1です。元のPimax/Baballonia経路は維持しています。
 
 ## 使い始める
 

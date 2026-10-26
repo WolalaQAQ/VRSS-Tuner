@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <iostream>
 #include <locale>
 #include <sstream>
 #include <string>
@@ -22,6 +23,9 @@
 #include "GazeSettings.h"
 #include "RegionEstimate.h"
 #include "BaballoniaRelay.h"
+#include "FrameRuntime.h"
+#include "FrameTestGate.h"
+#include "../common-vrss-provider/ProviderEntry.h"
 #include "Localization.h"
 
 #pragma comment(lib, "comctl32.lib")
@@ -32,6 +36,11 @@
 #pragma comment(lib, "ws2_32.lib")
 
 namespace {
+#ifdef VRSS_OFFLINE_UI_TEST
+constexpr bool kOfflineUiTest=true;
+#else
+constexpr bool kOfflineUiTest=false;
+#endif
 constexpr NvU32 kHmdGate = 0x00524252u;
 constexpr NvU32 kVrLayout = 0x00524253u;
 constexpr NvU32 kArea = 0x00524254u;
@@ -188,6 +197,10 @@ std::wstring gazeNumberText(float value) {
     return text == L"-0" ? L"0" : text;
 }
 std::filesystem::path backupFolder() {
+    if constexpr(kOfflineUiTest) {
+        wchar_t module[32768]{};GetModuleFileNameW(nullptr,module,32768);
+        return std::filesystem::path(module).parent_path()/L"offline-ui-data";
+    }
     wchar_t buffer[32768]{};
     DWORD size = GetEnvironmentVariableW(L"LOCALAPPDATA", buffer, static_cast<DWORD>(std::size(buffer)));
     if (!size || size >= std::size(buffer)) return {};
@@ -416,7 +429,7 @@ enum ControlId {
     kGazeRefresh, kGazeApply, kGazeRestore, kGazeReset,
     kAreaSlider, kEstimateMsaa, kProfileName, kProfileSave, kProfileSwitch,
     kInputTab, kInputPort, kInputForward, kInputStart, kInputStop, kInputStatus,
-    kLanguage
+    kLanguage, kFrameTab, kFrameStart, kFrameStop, kFrameLaunch
 };
 struct Ui {
     HWND window{}, mode{}, area{}, aspectCheck{}, aspect{}, layout{}, invert{}, status{}, restore{};
@@ -427,12 +440,14 @@ struct Ui {
     live::Target target{live::Target::Pimax};
     live::Snapshot gazeLoaded{};
     bool gazeLoadedOk{};
+    HWND frameTab{},frameStart{},frameStop{},frameLaunch{},frameStatus{};
     int panel{};
-    std::vector<HWND> driverControls, gazeControls, inputControls, restartBadges;
+    std::vector<HWND> driverControls, gazeControls, inputControls, frameControls, restartBadges;
     HWND areaSlider{}, estimateMsaa{}, regionPreview{}, regionArea{}, regionCost{}, regionNote{}, installInfo{};
     region::Estimate estimate;
 };
 Ui gUi;
+frame::Runtime gFrameRuntime;
 HFONT gFont{};
 HFONT gBoldFont{};
 bool gBusy{};
@@ -449,6 +464,7 @@ HWND control(const wchar_t* cls, const wchar_t* title, DWORD style, int x, int y
     if (gCreatingPanel == 0) gUi.driverControls.push_back(handle);
     if (gCreatingPanel == 1) gUi.gazeControls.push_back(handle);
     if (gCreatingPanel == 2) gUi.inputControls.push_back(handle);
+    if (gCreatingPanel == 3) gUi.frameControls.push_back(handle);
     if (*title && (_wcsicmp(cls, L"STATIC") == 0 || _wcsicmp(cls, L"BUTTON") == 0))
         gLabels.emplace_back(handle, title);
     return handle;
@@ -484,7 +500,7 @@ void applyLanguage() {
     };
     repopulate(gUi.mode, L"オフ", L"オン");
     repopulate(gUi.gazeTarget, L"Pimax経路", L"共通プロバイダー");
-    for (HWND handle : {gUi.status, gUi.gazeStatus, gUi.inputStatus,
+    for (HWND handle : {gUi.status, gUi.gazeStatus, gUi.inputStatus, gUi.frameStatus,
                         gUi.regionArea, gUi.regionCost, gUi.regionNote, gUi.installInfo}) {
         auto found = gOriginalText.find(handle);
         if (found != gOriginalText.end()) {
@@ -590,6 +606,8 @@ unsigned processCount(const wchar_t* name) {
 }
 void showPanel(int panel) {
     gUi.panel = panel;
+    for(HWND handle:gUi.frameControls)ShowWindow(handle,panel==3?SW_SHOW:SW_HIDE);
+    check(gUi.frameTab,panel==3);
     for (HWND item : gUi.driverControls) ShowWindow(item, panel == 0 ? SW_SHOW : SW_HIDE);
     for (HWND item : gUi.gazeControls) ShowWindow(item, panel == 1 ? SW_SHOW : SW_HIDE);
     for (HWND item : gUi.inputControls) ShowWindow(item, panel == 2 ? SW_SHOW : SW_HIDE);
@@ -965,6 +983,137 @@ void startInputRelay() {
     updateInputStatus();
 }
 
+void updateFrameStatus() {
+    setText(gUi.frameStatus,gFrameRuntime.Message());
+    EnableWindow(gUi.frameStart,!gFrameRuntime.WorkerAlive());
+    EnableWindow(gUi.frameLaunch,gFrameRuntime.CanLaunchGame() && !vrchatRunning() && !processCount(L"Unity.exe"));
+}
+void prepareFrameProfile() {
+    if(vrchatRunning())throw std::runtime_error("Close VRChat before the initial Frame provider connection");
+    Session session;ProfileValues original{};
+    if(session.open()!=NVAPI_OK || session.readAll(original)!=NVAPI_OK)
+        throw std::runtime_error("NVIDIA VRChat profile is unavailable");
+    if(!original.allow.found || original.allow.raw!=1)
+        throw std::runtime_error("The VRChat profile does not permit VRSS; no allow flag or profile was fabricated");
+    if(original.mode.found && original.mode.raw!=0)return;
+    if(!saveBackup(original))throw std::runtime_error("Cannot back up VRSS settings");
+    if(session.write(kMode,1)!=NVAPI_OK || NvAPI_DRS_SaveSettings(session.session)!=NVAPI_OK)
+        throw std::runtime_error("Cannot enable VRSS; see the saved profile backup");
+    Session verify;ProfileValues applied{};
+    if(verify.open()!=NVAPI_OK || verify.readAll(applied)!=NVAPI_OK || !applied.mode.found || applied.mode.raw!=1)
+        throw std::runtime_error("VRSS mode read-back failed; see the saved profile backup");
+}
+struct FrameGateStore {
+    std::filesystem::path output;
+    std::filesystem::path pending;
+    bool ownsPending{};
+    frame::GateValue Read() {
+        Session session;Value value{};
+        if(session.open()!=NVAPI_OK || session.read(kHmdGate,value)!=NVAPI_OK)
+            throw std::runtime_error("Cannot read the VRChat HMD gate");
+        return {value.found,value.custom,value.raw};
+    }
+    void Backup(frame::GateValue value) {
+        DWORD error{};
+        if(!live::WriteNew(output/L"gate-before.txt",frame::SerializeGateBackup(value),error))
+            throw std::runtime_error("Cannot preserve the original HMD gate: "+std::to_string(error));
+        if(!pending.empty()) {
+            if(!live::WriteNew(pending,frame::SerializeGateBackup(value),error))
+                throw std::runtime_error("Cannot preserve the pending gate recovery record: "+std::to_string(error));
+            ownsPending=true;
+        }
+        std::cout<<"gateBefore found="<<value.found<<" custom="<<value.custom<<" raw="<<value.raw<<'\n';
+    }
+    void Save(frame::GateValue value) {
+        Session session;
+        if(session.open()!=NVAPI_OK)throw std::runtime_error("Cannot open the VRChat profile");
+        const auto status=value.custom?session.write(kHmdGate,value.raw):session.erase(kHmdGate);
+        if(status!=NVAPI_OK || NvAPI_DRS_SaveSettings(session.session)!=NVAPI_OK)
+            throw std::runtime_error("Cannot save the VRChat HMD gate");
+    }
+    void WriteTest() { Save({true,true,0});std::cout<<"gateTestApplied=0\n"; }
+    void Restore(frame::GateValue value) { Save(value); }
+    std::optional<frame::GateValue> Pending() {
+        if(pending.empty() || !std::filesystem::exists(pending))return {};
+        const auto attributes=GetFileAttributesW(pending.c_str());
+        if(attributes==INVALID_FILE_ATTRIBUTES || (attributes&(FILE_ATTRIBUTE_REPARSE_POINT|FILE_ATTRIBUTE_DIRECTORY)) ||
+           std::filesystem::file_size(pending)>256)throw std::runtime_error("Unsafe gate recovery record");
+        std::ifstream in(pending,std::ios::binary);
+        const auto value=frame::ReadGateBackup(in);
+        if(!value)throw std::runtime_error("Invalid gate recovery record; refusing new settings");
+        return value;
+    }
+    void ClearPending() {
+        if(!pending.empty() && !DeleteFileW(pending.c_str()) && GetLastError()!=ERROR_FILE_NOT_FOUND)
+            throw std::runtime_error("Gate restored but recovery record could not be cleared");
+        ownsPending=false;
+    }
+    void RequireExistingVrss() {
+        if(vrchatRunning() || processCount(L"Unity.exe"))throw std::runtime_error("Close VRChat and Unity before applying the test gate");
+        Session session;ProfileValues current{};
+        if(session.open()!=NVAPI_OK || session.readAll(current)!=NVAPI_OK ||
+           !current.allow.found || current.allow.raw!=1 || !current.mode.found || !current.mode.raw || current.mode.raw>2 || !current.layout.found || current.layout.raw!=4)
+            throw std::runtime_error("Steam Frame requires a permitted VRChat VRSS profile, mode 1/2 and layout 4");
+        std::cout<<"vrssMode="<<current.mode.raw<<" vrssAllow="<<current.allow.raw
+                 <<" vrLayout="<<current.layout.raw<<" profileScope=VRChat gateOnly=1\n";
+    }
+};
+int frameWorker(int argc,wchar_t** argv) {
+    if(argc!=6 || !frame::ValidRunId(argv[4]))return 80;
+    const auto profile=hmd::ParseProfile(argv[5]);if(!profile || *profile!=hmd::Profile::SteamFrame)return 80;
+    try {
+        size_t used=0;
+        const auto pid=std::stoul(argv[2],&used);
+        if(used!=wcslen(argv[2]))return 80;
+        const auto created=std::stoull(argv[3],&used);
+        if(used!=wcslen(argv[3]))return 80;
+        auto owner=frame::OpenOwner(DWORD(pid),created);
+        if(!owner.get())return 81;
+        const auto root=backupFolder();if(root.empty())return 82;
+        const auto run=root/L"frame-runs"/argv[4];frame::RequirePlainDirectory(run);
+        frame::Handle singleton(CreateMutexW(nullptr,FALSE,frame::kWorkerMutex));
+        if(!singleton.get() || GetLastError()==ERROR_ALREADY_EXISTS)return 83;
+        if(processCount(L"common_vrss_provider.exe") || processCount(L"vrss_gaze_provider.exe"))return 84;
+        if(vrchatRunning() || processCount(L"Unity.exe"))return 87;
+        std::ofstream log(run/L"worker.log",std::ios::binary);
+        if(!log)return 85;
+        frame::LogRedirect redirect(log);std::cout<<std::unitbuf;
+        const bool experimental=*profile==hmd::Profile::SteamFrame;
+        FrameGateStore store{run,root/L"frame-gate-pending.txt"};
+        frame::TestGateOverride<FrameGateStore> gate(store);
+        std::vector<std::wstring> arguments{L"provider",L"--source",L"openvr",L"--hmd-profile",hmd::ProfileName(*profile),L"--config",
+            gGazeStore.common.wstring(),L"--output",run.wstring()};
+        if(experimental) {arguments.push_back(L"--frame-session");arguments.push_back(L"1");}
+        std::vector<wchar_t*> raw;for(auto& argument:arguments)raw.push_back(argument.data());
+        uint64_t nextLogCheck=0;
+        int result=RunVrssProvider(int(raw.size()),raw.data(),[&] {
+            if(WaitForSingleObject(owner.get(),0)!=WAIT_TIMEOUT)return false;
+            const auto now=GetTickCount64();
+            if(now>=nextLogCheck) {
+                if(log.tellp()>std::streamoff(4*1024*1024)) {
+                    log.close();log.open(run/L"worker.log",std::ios::binary|std::ios::trunc);
+                }
+                nextLogCheck=now+60000;
+            }
+            return true;
+        },[&] {
+            frame::RecoverPendingGate(store);
+            prepareFrameProfile();
+            if(experimental) {store.RequireExistingVrss();gate.Apply();}
+        });
+        if(experimental || std::filesystem::exists(store.pending)) {
+            try {
+                gate.Recover();
+                if(store.ownsPending)store.ClearPending();
+                if(store.Pending())throw std::runtime_error("A previous gate recovery remains pending; no new session was applied");
+                std::cout<<"gateRestored=1\n";
+            } catch(const std::exception& error) {std::cerr<<"RECOVERY_REQUIRED: "<<error.what()<<'\n';result=90;}
+        }
+        std::ofstream(run/L"exit-code.txt")<<result<<'\n';
+        return result;
+    } catch(...) { return 86; }
+}
+
 LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
     case WM_CREATE: {
@@ -975,9 +1124,10 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
         gUi.profileName = control(L"COMBOBOX", L"", CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP, 328, 10, 165, 250, kProfileName);
         gUi.profileSave = control(L"BUTTON", L"保存", WS_TABSTOP | BS_PUSHBUTTON, 505, 10, 72, 27, kProfileSave);
         gUi.profileSwitch = control(L"BUTTON", L"切替", WS_TABSTOP | BS_PUSHBUTTON, 585, 10, 85, 27, kProfileSwitch);
-        gUi.driverTab = control(L"BUTTON", L"画質", BS_AUTORADIOBUTTON | BS_PUSHLIKE | WS_TABSTOP, 20, 47, 150, 30, kDriverTab);
-        gUi.gazeTab = control(L"BUTTON", L"視線補正", BS_AUTORADIOBUTTON | BS_PUSHLIKE | WS_TABSTOP, 180, 47, 150, 30, kGazeTab);
-        gUi.inputTab = control(L"BUTTON", L"視線入力", BS_AUTORADIOBUTTON | BS_PUSHLIKE | WS_TABSTOP, 340, 47, 150, 30, kInputTab);
+        gUi.driverTab = control(L"BUTTON", L"画質", BS_AUTORADIOBUTTON | BS_PUSHLIKE | WS_TABSTOP, 20, 47, 110, 30, kDriverTab);
+        gUi.gazeTab = control(L"BUTTON", L"視線補正", BS_AUTORADIOBUTTON | BS_PUSHLIKE | WS_TABSTOP, 140, 47, 110, 30, kGazeTab);
+        gUi.inputTab = control(L"BUTTON", L"視線入力", BS_AUTORADIOBUTTON | BS_PUSHLIKE | WS_TABSTOP, 260, 47, 110, 30, kInputTab);
+        gUi.frameTab=control(L"BUTTON",L"Steam Frame",BS_AUTORADIOBUTTON | BS_PUSHLIKE | WS_TABSTOP,380,47,130,30,kFrameTab);
         gUi.language = control(L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_TABSTOP | WS_VSCROLL,
                                520, 47, 150, 100, kLanguage);
         SendMessageW(gUi.language, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"日本語"));
@@ -1062,18 +1212,37 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
         gUi.inputStop=control(L"BUTTON",L"停止",WS_TABSTOP | BS_PUSHBUTTON,180,240,105,32,kInputStop);
         gUi.inputStatus=control(L"EDIT",L"停止中",WS_BORDER | ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | WS_VSCROLL,20,295,650,145,kInputStatus);
         control(L"STATIC",L"Baballoniaの出力先を受信ポートに設定します。Pimax公式経路が有効なら共通経路への送信を止めます。",SS_LEFT,20,460,650,52);
+        gCreatingPanel=3;
+        control(L"STATIC",L"Steam Frame / NVIDIA 596.02",SS_LEFT,20,105,650,28);
+        control(L"STATIC",L"SteamVRのSteamリンク設定で、他のPCアプリへの視線共有を有効にしてください。",SS_LEFT,20,150,650,48);
+        control(L"STATIC",L"接続前にVRChatとUnityを終了してください。管理者確認はワーカーだけに表示されます。",SS_LEFT,20,205,650,48);
+        gUi.frameStart=control(L"BUTTON",L"接続 / 再試行",WS_TABSTOP | BS_PUSHBUTTON,20,270,160,32,kFrameStart);
+        gUi.frameStop=control(L"BUTTON",L"停止",WS_TABSTOP | BS_PUSHBUTTON,190,270,100,32,kFrameStop);
+        gUi.frameLaunch=control(L"BUTTON",L"VRChatを起動（Frame用）",WS_TABSTOP | BS_PUSHBUTTON,300,270,330,32,kFrameLaunch);
+        gUi.frameStatus=control(L"EDIT",L"",WS_BORDER | ES_MULTILINE | ES_READONLY | WS_VSCROLL,20,325,650,155);
+        control(L"STATIC",L"VRレイアウト4を使用。上下補正はFrame入力に内蔵しています。\r\n追加の補正は共通プロバイダーで調整できます。\r\n終了時に一時設定を復元します。ゲームは強制終了しません。",SS_LEFT,20,500,650,95);
         gCreatingPanel = -1;
         listProfiles();
-        refresh();
+        if constexpr(!kOfflineUiTest)refresh();
         refreshGaze();
         updateEstimate();
         updateInputStatus();
+        updateFrameStatus();
         SetTimer(window, 1, 1000, nullptr);
         showPanel(0);
         return 0;
     }
     case WM_COMMAND:
         if (gBusy) return 0;
+        if constexpr(kOfflineUiTest) {
+            switch(LOWORD(wParam)) {
+            case kDriverTab:showPanel(0);return 0;
+            case kGazeTab:showPanel(1);return 0;
+            case kInputTab:showPanel(2);return 0;
+            case kFrameTab:showPanel(3);return 0;
+            }
+            return 0;
+        }
         if (LOWORD(wParam) == kLanguage && HIWORD(wParam) == CBN_SELCHANGE) {
             language::english = SendMessageW(gUi.language, CB_GETCURSEL, 0, 0) == 1;
             saveLanguage();
@@ -1101,6 +1270,16 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             case kProfileSave: saveProfileFromUi(); return 0;
             case kProfileSwitch: switchProfile(); return 0;
             case kInputTab: showPanel(2); return 0;
+            case kFrameTab: showPanel(3); return 0;
+            case kFrameStart: gFrameRuntime.Retry();updateFrameStatus();return 0;
+            case kFrameStop: gFrameRuntime.Stop();updateFrameStatus();return 0;
+            case kFrameLaunch:
+                try {
+                    if(vrchatRunning() || processCount(L"Unity.exe"))
+                        throw std::runtime_error("Close VRChat and Unity before launching");
+                    gFrameRuntime.LaunchGame(window);
+                } catch(const std::exception& e) {MessageBoxA(window,e.what(),"Frame launch stopped",MB_ICONWARNING);}
+                updateFrameStatus();return 0;
             case kInputStart: startInputRelay(); return 0;
             case kInputStop: gInputRelay.Stop(); updateInputStatus(); return 0;
             }
@@ -1111,7 +1290,11 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             setText(gUi.area,std::to_wstring(SendMessageW(gUi.areaSlider,TBM_GETPOS,0,0)));updateEstimate();return 0;
         }
         break;
-    case WM_TIMER: if (wParam == 1) { updateInputStatus(); return 0; } break;
+    case WM_TIMER: if (wParam == 1) {
+        if constexpr(kOfflineUiTest)return 0;
+        if(!gBusy)gFrameRuntime.Tick({processCount(L"vrserver.exe")!=0,vrchatRunning() || processCount(L"Unity.exe")!=0,
+            gInputRelay.Running() || processCount(L"common_vrss_provider.exe")!=0 || processCount(L"vrss_gaze_provider.exe")!=0,false},backupFolder(),window);
+        updateFrameStatus(); updateInputStatus(); return 0; } break;
     case WM_CTLCOLORSTATIC: {
         HDC dc = reinterpret_cast<HDC>(wParam); HWND item = reinterpret_cast<HWND>(lParam);
         SetBkMode(dc, TRANSPARENT); SetTextColor(dc, RGB(25, 25, 25));
@@ -1120,7 +1303,7 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
         return reinterpret_cast<LRESULT>(GetStockObject(WHITE_BRUSH));
     }
     case WM_CLOSE: if (gBusy) return 0; break;
-    case WM_DESTROY: KillTimer(window, 1); gInputRelay.Stop(); if(gBoldFont) DeleteObject(gBoldFont);PostQuitMessage(0); return 0;
+    case WM_DESTROY: KillTimer(window, 1); gFrameRuntime.Stop(); gInputRelay.Stop(); if(gBoldFont) DeleteObject(gBoldFont);PostQuitMessage(0); return 0;
     }
     return DefWindowProcW(window, message, wParam, lParam);
 }
@@ -1130,11 +1313,13 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     int argc{};
     wchar_t** argv = CommandLineToArgvW(GetCommandLineW(), &argc);
     if (!argv) return 30;
+    if constexpr(kOfflineUiTest) {if(argc>1){LocalFree(argv);return 31;}}
     initializeGazePaths();
     loadLanguage();
     if (argc > 1) {
         int result = 31;
-        if (wcscmp(argv[1], L"--readiness") == 0 && argc == 3) {
+        if (wcscmp(argv[1],L"--frame-worker")==0)result=frameWorker(argc,argv);
+        else if (wcscmp(argv[1], L"--readiness") == 0 && argc == 3) {
             Session session; ProfileValues values{};
             NvAPI_Status status = session.open();
             if (status == NVAPI_OK) status = session.readAll(values);
