@@ -4,12 +4,22 @@ NVIDIA VRSS2の設定と視線入力を扱うWindows用の試験版です。ZIP�
 
 **開発者の確認環境はPimax Dream Air**です（GeForce RTX 5090／NVIDIAドライバー610.88）。貢献者が整理後のSteam Frame経路も596.02で実機確認しています。Frameは下記の専用手順を使ってください。[詳細な日本語ガイド](https://github.com/challenger0303/VRSS-Tuner/blob/main/docs/SETUP.ja.md)も参照してください。
 
+## 最初にすること
+
+1. ZIPを**丸ごと展開**して`VRSS Tuner.exe`を開き、右上で日本語を選びます。NVIDIAドライバー、HMDの視線ソフト、SteamVR、VRChatは別途必要です。
+2. **Pimax純正XR5**なら、Pimaxの視線機能を有効にし、Tunerで「Pimax経路（純正優先）」と「VRSSオン」を選んで適用します。`Start-Provider.cmd`や共通経路用の`Test-Setup.cmd`は不要です。
+3. **Steam Frame**なら、下のFrame専用手順を使います。共通経路の起動スクリプトは使いません。
+4. **その他の視線入力**なら、VRChatを閉じ、HMDとSteamVRを起動して`Test-Setup.cmd`を実行します。診断が通ったら下表から入力元を一つ選び、対応する起動スクリプトを実行します。管理者確認が出ます。
+5. VRChatのグラフィック設定でMSAAを有効にし、HMD内で両目の高画質領域が視線に追従するか確認します。Tunerの緑の表示だけでは画質の変化は確認できません。
+
+他のPCや未検証HMDでの動作は保証していません。共通経路では監査済みドライバー実体と、VRSSを許可するNVIDIAのVRChatプロファイルが必要です。診断が失敗した場合は、その理由を確認してください。
+
 ## Steam Frame（596.02・実験対応）
 
 Frameでは旧来のEDID診断やStart-Providerを使わず、[Frame専用手順](STEAM-FRAME.md)を使ってください。SteamVRの視線共有を有効にし、VRレイアウト4・MSAAを設定します。VRChatとUnityを閉じてTunerの「Steam Frame」→「接続 / 再試行」を押し、登録後に「VRChatを起動（Frame用）」を使います。上下変換は内蔵済みなので共通補正の初期値はX=1・Y=1です。下記の汎用SteamVR視線アクション経路とは別です。
 ## 入力元を選ぶ
 
-VRChatを閉じ、HMDを接続してSteamVRを起動し、先に`Test-Setup.cmd`を実行します。TunerでVRSSをオンにしてから、**使う入力元を一つだけ**選びます。
+共通経路では、VRChatを閉じ、HMDを接続してSteamVRを起動し、先に`Test-Setup.cmd`を実行します。TunerでVRSSをオンにしてから、**使う入力元を一つだけ**選びます。Pimax純正経路にはこの診断と起動スクリプトは使いません。
 
 | 入力元 | Tunerで選ぶ項目 | 起動方法 |
 | --- | --- | --- |

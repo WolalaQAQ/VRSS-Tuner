@@ -4,12 +4,22 @@ This is an experimental Windows app for NVIDIA VRSS2 settings and gaze input. Ex
 
 **The maintainer's verified setup is Pimax Dream Air** (GeForce RTX 5090 / NVIDIA driver 610.88). A contributor also smoke-tested the cleaned Steam Frame route on 596.02; see the separate Frame instructions below. See the [full English setup guide](https://github.com/challenger0303/VRSS-Tuner/blob/main/docs/SETUP.md).
 
+## First steps
+
+1. Extract the **whole ZIP**, open `VRSS Tuner.exe`, and choose your language at the top right. Install the NVIDIA driver, headset eye-tracking software, SteamVR, and VRChat separately.
+2. For **native Pimax XR5**, enable Pimax eye tracking, select **Pimax path (native priority)** and **VRSS On** in the tuner, then apply. Do not run `Start-Provider.cmd` or the common-path `Test-Setup.cmd`.
+3. For **Steam Frame**, follow the Frame-specific instructions below. Do not run a common-path launcher.
+4. For **other gaze sources**, close VRChat, connect the headset, start SteamVR, and run `Test-Setup.cmd`. Once the checks pass, select one source from the table and run its matching launcher. Windows will ask for administrator confirmation.
+5. Enable MSAA in VRChat's graphics settings. Verify in the headset that the high-quality region follows gaze in both eyes. A green tuner status alone does not prove the rendered result.
+
+Other PCs and untested headsets are not guaranteed to work. The common path requires an audited driver image and an NVIDIA VRChat profile that allows VRSS. If setup fails, use its reported reason.
+
 ## Steam Frame (596.02, experimental)
 
 Use the [Frame-specific instructions](STEAM-FRAME.md), not the legacy EDID setup check or Start-Provider. Enable SteamVR eye-tracking sharing, VR layout 4 and MSAA; close VRChat and Unity, select **Steam Frame > Connect / Retry**, then **Launch VRChat (Frame)**. Vertical conversion is built in; start with Common provider gains X=1, Y=1. This is separate from the generic SteamVR eye-action route below.
 ## Choose one gaze source
 
-Close VRChat, connect the headset, start SteamVR, and run `Test-Setup.cmd`. Turn on VRSS in the tuner, then choose **one** source.
+For the common path, close VRChat, connect the headset, start SteamVR, and run `Test-Setup.cmd`. Turn on VRSS in the tuner, then choose **one** source. The native Pimax path does not use this setup check or launcher.
 
 | Source | Tuner selection | How to start |
 | --- | --- | --- |
