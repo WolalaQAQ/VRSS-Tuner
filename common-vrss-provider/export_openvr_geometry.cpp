@@ -20,7 +20,8 @@ static std::string Property(vr::IVRSystem* system, vr::ETrackedDeviceProperty pr
 
 int wmain(int argc,wchar_t** argv) {
     const bool manual=argc==5 && std::wstring(argv[2])==L"--candidate-id";
-    if(argc!=2 && !manual) return 2;
+    const bool session=argc==3 && std::wstring(argv[2])==L"--common-session-key";
+    if(argc!=2 && !manual && !session) return 2;
     vr::EVRInitError error{};
     auto vrSystem=vr::VR_Init(&error,vr::VRApplication_Background);
     if(!vrSystem || error!=vr::VRInitError_None) return 3;
@@ -33,7 +34,11 @@ int wmain(int argc,wchar_t** argv) {
         Property(vrSystem,vr::Prop_TrackingSystemName_String),
         Property(vrSystem,vr::Prop_SerialNumber_String));
     auto source=std::string("openvr-edid");
-    if(manual) {
+    if(session) {
+        vid=hmd_identity::kCandidateVendor;
+        pid=hmd_identity::kCommonSessionProduct;
+        source="tuner-session";
+    } else if(manual) {
         try {
             size_t usedVendor=0,usedProduct=0;
             const auto requestedVendor=std::stoul(argv[3],&usedVendor,10);

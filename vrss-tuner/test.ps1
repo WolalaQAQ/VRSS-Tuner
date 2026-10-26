@@ -9,6 +9,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Windows PowerShell provider launch smoke test 
 if ($LASTEXITCODE -ne 0) { throw 'Windows PowerShell common-session smoke test failed.' }
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $here 'test-portable-hash.ps1')
 if ($LASTEXITCODE -ne 0) { throw 'Windows PowerShell portable hash test failed.' }
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $here 'test-steam-launch-bridge.ps1')
+if ($LASTEXITCODE -ne 0) { throw 'Steam launch bridge smoke test failed.' }
 & (Join-Path (Split-Path -Parent $here) 'common-vrss-provider\test-driver-identity.ps1')
 & (Join-Path $here 'test-frame-runtime.ps1')
 & (Join-Path $here 'test-frame-gate.ps1')

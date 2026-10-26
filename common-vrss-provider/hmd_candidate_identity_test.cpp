@@ -3,6 +3,8 @@
 
 int main() {
     using hmd_identity::Derive;
+    static_assert(hmd_identity::kCandidateVendor==0xFEEE &&
+                  hmd_identity::kCommonSessionProduct==1);
     const auto first=Derive("wireless-runtime","headset-001");
     const auto again=Derive("wireless-runtime","headset-001");
     const auto otherSerial=Derive("wireless-runtime","headset-002");

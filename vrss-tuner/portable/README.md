@@ -19,7 +19,7 @@ NVIDIA VRSS2の設定と視線入力を扱うWindows用の試験版です。ZIP�
 Frameでは旧来のEDID診断やStart-Providerを使わず、[Frame専用手順](STEAM-FRAME.md)を使ってください。SteamVRの視線共有を有効にし、VRレイアウト4・MSAAを設定します。VRChatとUnityを閉じてTunerの「Steam Frame」→「接続 / 再試行」を押し、登録後に「VRChatを起動（Frame用）」を使います。上下変換は内蔵済みなので共通補正の初期値はX=1・Y=1です。下記の汎用SteamVR視線アクション経路とは別です。
 ## 入力元を選ぶ
 
-共通経路では、HMDと視線ソフトを起動し、TunerでVRSSをオンにしてから、**使う入力元を一つだけ**選びます。Tunerの起動ボタンが必要ならSteamVRを起動し、`Test-Setup`とプロバイダー起動を行います。VRChatが既に動いている場合はNVIDIAの受信側を約8秒待ち、確認できなければVRChatを通常終了・再起動します。VRChatが通常終了を受け付けない場合は強制終了せず中止します。代替HMD IDが必要な経路では最初から再起動します。Pimax純正経路にはこの診断と起動スクリプトは使いません。
+共通経路では、HMDと視線ソフトを起動し、TunerでVRSSをオンにしてから、**使う入力元を一つだけ**選びます。Tunerの起動ボタンが必要ならSteamVRを起動し、`Test-Setup`とプロバイダー起動を行います。`vrchatLaunchMode=protected-hmd-key`の場合は、実EDIDでも代替IDでも、NVIDIAへ登録したIDを保護付きVRChatの起動時に渡します。このモードでは起動済みVRChatにIDを後付けできないため、通常終了・再起動します。`vrchatLaunchMode=steam`の場合は既存VRChatへの接続を約8秒待ち、確認できなければ通常終了・再起動します。VRChatが通常終了を受け付けない場合は強制終了せず中止します。Steam Frameは上記の専用経路を使い、Pimax純正経路にはこの診断と起動スクリプトを使いません。
 
 | 入力元 | Tunerで選ぶ項目 | 起動方法 |
 | --- | --- | --- |
@@ -41,9 +41,11 @@ Frameでは旧来のEDID診断やStart-Providerを使わず、[Frame専用手順
 
 共通経路の起動ではWindowsの管理者確認が出ます。VRChat起動後にMSAAを有効にし、Tuner下部で視線の受信とNVIDIAへの受理を確認してください。表示される点は送信した視線位置であり、高画質領域そのものではありません。終了時は`Stop-Provider.cmd`を実行します。Toolkit・VIVE・SteamVR・Varjoのブリッジも停止します。
 
-`Test-Setup.cmd`はOpenVRからHMDのEDID IDを読みます。EDIDがない場合でも、OpenVRが安定した追跡システム名とシリアル番号を返せば、その組合せから試験用IDを自動生成し、`hmdIdentitySource=candidate-auto`と表示します。シリアル番号をファイルに保存する代わりに、照合用のハッシュを保存します。これらも得られないときは起動を止めます。候補IDのまま共通プロバイダーを起動したら、通常のSteam起動ではなく`Start-VRChat-Candidate.cmd`から保護付きVRChatを起動してください。起動直前に接続中HMDのID・投影情報を再確認し、プロバイダーとVRChatに同じIDを渡します。VRChatプロファイルには監査済みNVIDIA HMDテスト経路が必要です。
+監査済みNVIDIA HMDテスト経路が有効な共通プロバイダーでは、`Test-Setup.cmd`は接続用の固定キー`0xFEEE:0x0001`を使います。これは物理EDIDではなく、プロバイダーとVRChatを一致させるためだけの値です。投影情報は接続中HMDから別途取得し、HMDごとの視線補正も必要です。EDIDやシリアル番号がなくても投影情報を読めれば、IDの段階では停止しません。`Start-VRChat-HMD-Key.cmd`は起動時に同じキーを渡します。旧`Start-VRChat-Candidate.cmd`も互換入口として残しています。通常はTunerの一括起動ボタンが自動で選びます。Steam Frameは専用経路を使います。
 
-手動実験には従来どおり`VRSS_HMD_ID_CANDIDATE`に十進数の`vendor:product`を指定できます。この場合は`candidate-manual`と表示され、VRChat起動時にも同じ環境変数が必要です。自動・手動の候補IDは、他のHMDでVRSS2が動く保証ではありません。`consumerCount`、新しい視線の受理、HMD内のForce/Off画質差を順に確認してください。候補IDは実際のEDIDではなく、16ビットに縮めた試験用IDなので衝突の可能性もあります。
+通常のSteam起動でIDを渡す試験には`Install-Steam-Launch-Bridge.cmd`を一度実行し、表示された起動オプションをSteamの「VRChat → プロパティ → 一般 → 起動オプション」に設定します。共通プロバイダーが起動中で選択中のときだけ、ラッパーが登録済みIDをVRChatの子プロセスへ渡します。停止中は元の起動コマンドをそのまま実行します。現段階ではTunerやプロバイダーの自動起動と、Steam起動での保護付き実機動作は未検証です。
+
+手動実験には従来どおり`VRSS_HMD_ID_CANDIDATE`に十進数の`vendor:product`を指定できます。この場合は`candidate-manual`と表示され、VRChat起動時にも同じ環境変数が必要です。固定キーや手動候補IDは、他のHMDでVRSS2が動く保証ではありません。`consumerCount`、新しい視線の受理、HMD内のForce/Off画質差を順に確認してください。同じ固定キーの共通プロバイダーを複数同時には起動しません。
 
 HMD別の実装・実機検証状況は[対応表](HMD-GAZE-COMPATIBILITY.md)にまとめています。
 

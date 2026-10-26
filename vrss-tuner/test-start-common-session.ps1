@@ -5,6 +5,7 @@ Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'portable\Start-Common-Session.p
 [IO.File]::WriteAllText((Join-Path $fixture 'Test-Setup.ps1'), @'
 $global:VrssSessionEvents.Add('preflight')
 [pscustomobject]@{readyForProviderLaunch=$global:VrssSessionReady;hmdIdentityCandidate=$global:VrssSessionCandidate;
+    hmdTestBranch=$global:VrssSessionHmdTestBranch;
     reasons=@('This VRChat profile does not have the VRSS allow gate enabled.');
     reasonsJapanese=@('VRSS is not allowed.')} | ConvertTo-Json -Compress
 '@, [Text.Encoding]::ASCII)
@@ -22,8 +23,8 @@ $run | Set-Content -LiteralPath (Join-Path $data 'active-run.txt')
     Set-Content -LiteralPath (Join-Path $run 'status.json')
 'Provider started'
 '@, [Text.Encoding]::ASCII)
-[IO.File]::WriteAllText((Join-Path $fixture 'Start-VRChat-Candidate.ps1'), @'
-$global:VrssSessionEvents.Add('candidate-game')
+[IO.File]::WriteAllText((Join-Path $fixture 'Start-VRChat-HMD-Key.ps1'), @'
+$global:VrssSessionEvents.Add('keyed-game')
 $global:VrssSessionGame = $true
 '{}'
 '@, [Text.Encoding]::ASCII)
@@ -63,14 +64,16 @@ $previousLocalAppData = $env:LOCALAPPDATA
 try {
     $env:LOCALAPPDATA = Join-Path $fixture 'local-app-data'
     foreach ($case in @(
-        @{game=$true;steamvr=$false;candidate=$false;hot=$true;expected='start-steamvr,preflight,provider'},
-        @{game=$true;steamvr=$true;candidate=$false;hot=$false;expected='preflight,provider,close-game,steam-game'},
-        @{game=$false;steamvr=$true;candidate=$true;expected='preflight,provider,candidate-game'})) {
+        @{game=$true;steamvr=$false;candidate=$false;keyed=$false;hot=$true;expected='start-steamvr,preflight,provider'},
+        @{game=$true;steamvr=$true;candidate=$false;keyed=$false;hot=$false;expected='preflight,provider,close-game,steam-game'},
+        @{game=$false;steamvr=$true;candidate=$true;keyed=$true;expected='preflight,provider,keyed-game'},
+        @{game=$true;steamvr=$true;candidate=$false;keyed=$true;expected='preflight,provider,close-game,keyed-game'})) {
         $global:VrssSessionEvents = [Collections.Generic.List[string]]::new()
         $global:VrssSessionGame = $case.game
         $global:VrssSessionSteamVr = $case.steamvr
         $global:VrssSessionProvider = $false
         $global:VrssSessionCandidate = $case.candidate
+        $global:VrssSessionHmdTestBranch = $case.keyed
         $global:VrssSessionReady = $true
         $global:VrssSessionProviderFails = $false
         $global:VrssSessionHotConsumer = [bool]$case.hot
@@ -88,6 +91,7 @@ try {
         $global:VrssSessionSteamVr = $true
         $global:VrssSessionProvider = $false
         $global:VrssSessionCandidate = $false
+        $global:VrssSessionHmdTestBranch = $false
         $global:VrssSessionReady = $failure -ne 'preflight'
         $global:VrssSessionProviderFails = $failure -eq 'provider'
         $global:VrssSessionHotConsumer = $false
@@ -106,7 +110,8 @@ try {
     $env:LOCALAPPDATA = $previousLocalAppData
     foreach ($name in @('VrssSessionFakeGame','VrssSessionEvents','VrssSessionGame',
                        'VrssSessionSteamVr','VrssSessionProvider','VrssSessionCandidate',
-                       'VrssSessionReady','VrssSessionProviderFails','VrssSessionHotConsumer')) {
+                       'VrssSessionReady','VrssSessionProviderFails','VrssSessionHotConsumer',
+                       'VrssSessionHmdTestBranch')) {
         Remove-Variable -Name $name -Scope Global -ErrorAction SilentlyContinue
     }
 }

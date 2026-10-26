@@ -26,7 +26,8 @@ try {
     try { $manifest = $reader.ReadToEnd() | ConvertFrom-Json }
     finally { $reader.Dispose() }
     $listed = @($manifest.files)
-    $required = @('VRSS Tuner.exe','common-vrss-provider/common_vrss_provider.exe','Audit-Driver.cmd','Audit-Driver.ps1',
+    $required = @('VRSS Tuner.exe','steam_vrchat_launch.exe','openvr_api.dll','Install-Steam-Launch-Bridge.ps1',
+        'Install-Steam-Launch-Bridge.cmd','common-vrss-provider/common_vrss_provider.exe','Audit-Driver.cmd','Audit-Driver.ps1',
         'Start-Common-Session.ps1',
         'steamvr-gaze-bridge/steamvr_gaze_bridge.exe','psvr2-gaze-bridge/psvr2_gaze_bridge.exe',
         'vive-streaming-gaze-bridge/ViveStreamingGazeBridge.exe',

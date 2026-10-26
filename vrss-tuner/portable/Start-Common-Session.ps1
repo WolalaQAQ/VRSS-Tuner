@@ -79,8 +79,9 @@ try {
         throw ('Setup is not ready: ' + ($reasons -join '; '))
     }
 
-    if ($gameWasRunning -and $setup.hmdIdentityCandidate) { Close-VRChatNormally }
-
+    # The audited HMD test branch reads its ID from the VRChat process environment
+    # at startup. A running game cannot receive that ID through a hot attachment.
+    $needsKeyedLaunch = [bool]$setup.hmdTestBranch
     Write-Output ('Starting common gaze provider from ' + $InputRoute + '...')
     & (Join-Path $bundle 'Start-Provider.ps1') -InputRoute $InputRoute `
         -AllowRunningVRChat:([bool](Get-Process VRChat -ErrorAction SilentlyContinue))
@@ -88,6 +89,10 @@ try {
         throw 'The common gaze provider did not stay running.'
     }
     $providerStarted = $true
+
+    if ($needsKeyedLaunch -and (Get-Process VRChat -ErrorAction SilentlyContinue)) {
+        Close-VRChatNormally
+    }
 
     if (Get-Process VRChat -ErrorAction SilentlyContinue) {
         $deadline = (Get-Date).AddSeconds($HotAttachWaitSeconds)
@@ -104,9 +109,9 @@ try {
         Close-VRChatNormally
     }
 
-    if ($setup.hmdIdentityCandidate) {
-        Write-Output 'Launching protected VRChat with the candidate HMD identity...'
-        & (Join-Path $bundle 'Start-VRChat-Candidate.ps1') | Out-Null
+    if ($needsKeyedLaunch) {
+        Write-Output 'Launching protected VRChat with the registered HMD identity...'
+        & (Join-Path $bundle 'Start-VRChat-HMD-Key.ps1') | Out-Null
     } else {
         Write-Output 'Launching VRChat through Steam...'
         Start-SteamApp 438100

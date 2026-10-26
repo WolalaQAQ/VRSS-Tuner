@@ -88,6 +88,8 @@ if ($integrity -and $steamVr) {
     $exportArgs = @($geometryFile)
     if ($candidateValid) {
         $exportArgs += @('--candidate-id',$candidateVendor,$candidateProduct)
+    } elseif (-not $candidate -and $details['hmd_test_branch'] -eq 'enabled') {
+        $exportArgs += '--common-session-key'
     }
     Remove-Item -LiteralPath $geometryFile -ErrorAction SilentlyContinue
     $exportResult = & $exporter @exportArgs 2>&1 | Out-String
@@ -113,7 +115,7 @@ if ($integrity -and $steamVr) {
         } else { $reasons.Add('Could not read and validate the connected HMD geometry.') }
     }
 }
-if ($identitySource -in @('candidate-auto','candidate-manual') -and $details['hmd_test_branch'] -ne 'enabled') {
+if ($identitySource -in @('candidate-auto','candidate-manual','tuner-session') -and $details['hmd_test_branch'] -ne 'enabled') {
     $reasons.Add('Candidate HMD identity needs the audited NVIDIA HMD test branch in the VRChat profile.')
 }
 $reasonsJapanese = @(foreach ($reason in $reasons) {
@@ -159,7 +161,10 @@ $reasonsJapanese = @(foreach ($reason in $reasons) {
     hmdIdentityVendor = $identityVendor
     hmdIdentityProduct = $identityProduct
     hmdIdentityFingerprint = $identityFingerprint
-    hmdIdentityCandidate = $identitySource -in @('candidate-auto','candidate-manual')
+    hmdIdentityCandidate = $identitySource -in @('candidate-auto','candidate-manual','tuner-session')
+    vrchatLaunchMode = $(if ($details['hmd_test_branch'] -eq 'enabled') { 'protected-hmd-key' }
+                         elseif ($identitySource -in @('candidate-auto','candidate-manual','tuner-session')) { 'unavailable' }
+                         else { 'steam' })
     gazeInput = 'Select and start the matching gaze source in VRSS Tuner after provider launch; live tracking still requires a headset check.'
     reasons = @($reasons)
     reasonsJapanese = @($reasonsJapanese)

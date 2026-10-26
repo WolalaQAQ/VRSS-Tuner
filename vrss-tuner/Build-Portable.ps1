@@ -35,6 +35,12 @@ $line = 'call "' + $vcvars + '" >nul && cl /nologo /std:c++17 /utf-8 /EHsc /O2 /
 & cmd.exe /d /c $line
 if ($LASTEXITCODE -ne 0) { throw 'Portable geometry exporter build failed' }
 Copy-Item -LiteralPath (Join-Path $openvr 'openvr_api.dll') -Destination (Join-Path $common 'openvr_api.dll')
+$steamLauncher = Join-Path $bundle 'steam_vrchat_launch.exe'
+$steamLauncherSource = Join-Path $here 'steam_vrchat_launch.cpp'
+$line = 'call "' + $vcvars + '" >nul && cl /nologo /std:c++17 /utf-8 /EHsc /O2 /W4 /MT /I"' + $research + '" /Fo"' + (Join-Path $here 'build\steam_vrchat_launch.portable.obj') + '" "' + $steamLauncherSource + '" /link "' + (Join-Path $openvr 'openvr_api.lib') + '" /SUBSYSTEM:WINDOWS /ENTRY:wmainCRTStartup /OUT:"' + $steamLauncher + '"'
+& cmd.exe /d /c $line
+if ($LASTEXITCODE -ne 0) { throw 'Steam VRChat launch bridge build failed' }
+Copy-Item -LiteralPath (Join-Path $openvr 'openvr_api.dll') -Destination (Join-Path $bundle 'openvr_api.dll')
 Copy-Item -LiteralPath (Join-Path $here 'portable\calibration.txt') -Destination (Join-Path $common 'calibration.txt')
 $steamBridge = Join-Path $bundle 'steamvr-gaze-bridge'
 New-Item -ItemType Directory -Path $steamBridge -ErrorAction Stop | Out-Null
@@ -80,12 +86,12 @@ if (Test-Path -LiteralPath $pimaxBuilt -PathType Leaf) {
     if ($RequireAllBridges) { throw "Required Pimax eye bridge is missing: $pimaxBuilt" }
     Write-Warning 'Pimax eye-device bridge is not bundled; supply -PimaxBridgeDll if needed.'
 }
-foreach ($name in @('Audit-Driver.ps1','Test-Setup.ps1','Start-Provider.ps1','Start-Common-Session.ps1','Stop-Provider.ps1','Start-VRChat-Candidate.ps1','Audit-Driver.cmd','Test-Setup.cmd','Start-Provider.cmd','Stop-Provider.cmd','Start-VRChat-Candidate.cmd','Start-PSVR2-Toolkit.cmd','Start-SRanibro.cmd','Start-Vive-Pro-Eye.cmd','Start-Vive-Streaming.cmd','Start-SteamVR-Eye.cmd','Start-Varjo.cmd')) {
+foreach ($name in @('Audit-Driver.ps1','Test-Setup.ps1','Start-Provider.ps1','Start-Common-Session.ps1','Stop-Provider.ps1','Start-VRChat-HMD-Key.ps1','Start-VRChat-Candidate.ps1','Install-Steam-Launch-Bridge.ps1','Audit-Driver.cmd','Test-Setup.cmd','Start-Provider.cmd','Stop-Provider.cmd','Start-VRChat-HMD-Key.cmd','Start-VRChat-Candidate.cmd','Install-Steam-Launch-Bridge.cmd','Start-PSVR2-Toolkit.cmd','Start-SRanibro.cmd','Start-Vive-Pro-Eye.cmd','Start-Vive-Streaming.cmd','Start-SteamVR-Eye.cmd','Start-Varjo.cmd')) {
     Copy-Item -LiteralPath (Join-Path $here "portable\$name") -Destination (Join-Path $bundle $name)
 }
 # The .cmd launchers use Windows PowerShell 5.1, which reads UTF-8 scripts
 # without a BOM as the legacy ANSI code page. Normalize every shipped script.
-foreach ($name in @('Audit-Driver.ps1','Test-Setup.ps1','Start-Provider.ps1','Start-Common-Session.ps1','Stop-Provider.ps1','Start-VRChat-Candidate.ps1')) {
+foreach ($name in @('Audit-Driver.ps1','Test-Setup.ps1','Start-Provider.ps1','Start-Common-Session.ps1','Stop-Provider.ps1','Start-VRChat-HMD-Key.ps1','Start-VRChat-Candidate.ps1','Install-Steam-Launch-Bridge.ps1')) {
     $path = Join-Path $bundle $name
     $source = [IO.File]::ReadAllText($path, [Text.UTF8Encoding]::new($false, $true))
     [IO.File]::WriteAllText($path, $source, [Text.UTF8Encoding]::new($true))
@@ -103,14 +109,14 @@ Copy-Item -LiteralPath (Join-Path $nvapi 'License.txt') -Destination (Join-Path 
 $notices = [IO.File]::ReadAllText((Join-Path $research 'THIRD_PARTY_NOTICES.md'))
 $notices = $notices.Replace('](LICENSE)', '](LICENSE.txt)').Replace('](third_party/nvapi/License.txt)', '](NVAPI-LICENSE.txt)').Replace('](third_party/openvr/LICENSE)', '](OpenVR-LICENSE.txt)')
 [IO.File]::WriteAllText((Join-Path $bundle 'THIRD_PARTY_NOTICES.md'), $notices, [Text.UTF8Encoding]::new($false))
-$files = @('VRSS Tuner.exe','openvr_api.dll','common-vrss-provider/common_vrss_provider.exe',
+$files = @('VRSS Tuner.exe','openvr_api.dll','steam_vrchat_launch.exe','common-vrss-provider/common_vrss_provider.exe',
     'common-vrss-provider/export_openvr_geometry.exe','common-vrss-provider/openvr_api.dll',
     'common-vrss-provider/calibration.txt',
     'steamvr-gaze-bridge/steamvr_gaze_bridge.exe','steamvr-gaze-bridge/openvr_api.dll','steamvr-gaze-bridge/eye_actions.json',
     'psvr2-gaze-bridge/psvr2_gaze_bridge.exe','psvr2-gaze-bridge/PSVR2Toolkit-LICENSE.txt',
     'vive-streaming-gaze-bridge/ViveStreamingGazeBridge.exe',
-    'Audit-Driver.ps1','Test-Setup.ps1','Start-Provider.ps1','Start-Common-Session.ps1','Stop-Provider.ps1','Start-VRChat-Candidate.ps1',
-    'Audit-Driver.cmd','Test-Setup.cmd','Start-Provider.cmd','Stop-Provider.cmd','Start-VRChat-Candidate.cmd',
+    'Audit-Driver.ps1','Test-Setup.ps1','Start-Provider.ps1','Start-Common-Session.ps1','Stop-Provider.ps1','Start-VRChat-HMD-Key.ps1','Start-VRChat-Candidate.ps1','Install-Steam-Launch-Bridge.ps1',
+    'Audit-Driver.cmd','Test-Setup.cmd','Start-Provider.cmd','Stop-Provider.cmd','Start-VRChat-HMD-Key.cmd','Start-VRChat-Candidate.cmd','Install-Steam-Launch-Bridge.cmd',
     'Start-PSVR2-Toolkit.cmd','Start-SRanibro.cmd',
     'Start-Vive-Pro-Eye.cmd','Start-Vive-Streaming.cmd','Start-SteamVR-Eye.cmd','Start-Varjo.cmd',
     'README.md','README.en.md','FACE-TRACKING-COEXISTENCE.md',

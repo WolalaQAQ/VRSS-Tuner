@@ -7,6 +7,9 @@ namespace hmd_identity {
 
 // Experimental local namespace. This is not a real EDID vendor assignment.
 constexpr uint16_t kCandidateVendor = 0xFEEE;
+// Common-path session key. This is only an NVIDIA provider/consumer routing key;
+// headset projection and gaze calibration still come from the connected HMD.
+constexpr uint16_t kCommonSessionProduct = 0x0001;
 
 struct Candidate {
     uint16_t vendor = 0;
