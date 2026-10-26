@@ -1,10 +1,16 @@
 ﻿param([ValidateSet('Baballonia','PSVR2Toolkit','SRanibro','ViveProEye','ViveStreaming','SteamVREye','Varjo')][string]$InputRoute='Baballonia',
-      [switch]$Worker,[string]$RunDirectory)
+      [switch]$Worker,[string]$RunDirectory,[switch]$AllowRunningVRChat)
 $ErrorActionPreference = 'Stop'
 $bundle = $PSScriptRoot
 $data = Join-Path $env:LOCALAPPDATA 'VRSS Tuner'
 $calibration = Join-Path $data 'common-calibration.txt'
 $runs = Join-Path $data 'runs'
+function Get-PortableSha256([string]$path) {
+    $stream = [IO.File]::OpenRead($path)
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { return ([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-', '') }
+    finally { $sha.Dispose(); $stream.Dispose() }
+}
 function Find-ViveSdk([string]$name) {
     if ($env:VRSS_VIVE_SDK_DLL) {
         $candidate = [IO.Path]::GetFullPath($env:VRSS_VIVE_SDK_DLL)
@@ -31,7 +37,7 @@ if ($Worker) {
     $geometry = Join-Path $resolved 'geometry.txt'
     $manifest = Get-Content -LiteralPath (Join-Path $bundle 'bundle-manifest.json') -Raw | ConvertFrom-Json
     $expected = @($manifest.files | Where-Object { $_.path -eq 'common-vrss-provider/common_vrss_provider.exe' })
-    if ($expected.Count -ne 1 -or (Get-FileHash -LiteralPath $provider).Hash -ne $expected[0].sha256)
+    if ($expected.Count -ne 1 -or (Get-PortableSha256 $provider) -ne $expected[0].sha256)
         { throw 'Provider file changed after preflight' }
     $source = if ($InputRoute -eq 'SRanibro') { 'tcp' } else { 'udp' }
     $port = if ($InputRoute -eq 'SRanibro') { 5555 } else { 5556 }
@@ -44,7 +50,7 @@ if ($Worker) {
     }
     return
 }
-$status = & (Join-Path $bundle 'Test-Setup.ps1') | ConvertFrom-Json
+$status = & (Join-Path $bundle 'Test-Setup.ps1') -AllowRunningVRChat:$AllowRunningVRChat | ConvertFrom-Json
 if (-not $status.readyForProviderLaunch) {
     $messages = if ([Globalization.CultureInfo]::CurrentUICulture.TwoLetterISOLanguageName -eq 'ja')
         { $status.reasonsJapanese } else { $status.reasons }
@@ -121,7 +127,7 @@ do {
             $bridge = Join-Path $bundle 'vive-streaming-gaze-bridge\ViveStreamingGazeBridge.exe'
             $manifest = Get-Content -LiteralPath (Join-Path $bundle 'bundle-manifest.json') -Raw | ConvertFrom-Json
             $expected = @($manifest.files | Where-Object { $_.path -eq 'vive-streaming-gaze-bridge/ViveStreamingGazeBridge.exe' })
-            if ($expected.Count -ne 1 -or (Get-FileHash -LiteralPath $bridge).Hash -ne $expected[0].sha256) {
+            if ($expected.Count -ne 1 -or (Get-PortableSha256 $bridge) -ne $expected[0].sha256) {
                 throw 'VIVE gaze bridge file changed after packaging.'
             }
             $bridgeArgs = '--geometry "' + (Join-Path $run 'geometry.txt') + '" --config "' + $calibration +

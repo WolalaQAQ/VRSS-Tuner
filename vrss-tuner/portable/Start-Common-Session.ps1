@@ -91,7 +91,10 @@ try {
         try {
             Write-Output 'Restoring VRChat after the failed start...'
             Start-SteamApp 438100
-        } catch { }
+            if (-not (Wait-ForProcess 'VRChat' 45)) {
+                Write-Warning 'VRChat did not restart within 45 seconds. Open it through Steam.'
+            }
+        } catch { Write-Warning ('Could not restore VRChat: ' + $_.Exception.Message) }
     }
     throw
 }

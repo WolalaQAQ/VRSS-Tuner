@@ -1,4 +1,4 @@
-﻿param()
+﻿param([switch]$AllowRunningVRChat)
 $ErrorActionPreference = 'Stop'
 $bundle = $PSScriptRoot
 $provider = Join-Path $bundle 'common-vrss-provider\common_vrss_provider.exe'
@@ -6,6 +6,12 @@ $exporter = Join-Path $bundle 'common-vrss-provider\export_openvr_geometry.exe'
 $tuner = Join-Path $bundle 'VRSS Tuner.exe'
 $calibration = Join-Path $env:LOCALAPPDATA 'VRSS Tuner\common-calibration.txt'
 $data = Join-Path $env:LOCALAPPDATA 'VRSS Tuner\preflight'
+function Get-PortableSha256([string]$path) {
+    $stream = [IO.File]::OpenRead($path)
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { return ([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-', '') }
+    finally { $sha.Dispose(); $stream.Dispose() }
+}
 New-Item -ItemType Directory -Path $data -Force | Out-Null
 if (-not (Test-Path -LiteralPath $calibration -PathType Leaf)) {
     Copy-Item -LiteralPath (Join-Path $bundle 'common-vrss-provider\calibration.txt') -Destination $calibration
@@ -20,7 +26,7 @@ foreach ($entry in $manifest.files) {
         -not (Test-Path -LiteralPath $path -PathType Leaf) -or
         # Tuner edits calibration.txt; --readiness and --check-only validate it below.
         ($entry.path -ne 'common-vrss-provider/calibration.txt' -and
-         (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ne $entry.sha256)) {
+         (Get-PortableSha256 $path) -ne $entry.sha256)) {
         $integrity = $false
         $reasons.Add("Package file missing or changed: $($entry.path)")
     }
@@ -57,7 +63,7 @@ $vrchat = [bool](Get-Process VRChat -ErrorAction SilentlyContinue)
 $official = [bool](Get-Process vrss_gaze_provider -ErrorAction SilentlyContinue)
 $common = [bool](Get-Process common_vrss_provider -ErrorAction SilentlyContinue)
 if (-not $steamVr) { $reasons.Add('Start SteamVR with a connected HMD.') }
-if ($vrchat) { $reasons.Add('Close VRChat normally before starting the gaze provider.') }
+if ($vrchat -and -not $AllowRunningVRChat) { $reasons.Add('Close VRChat normally before starting the gaze provider.') }
 if ($official) { $reasons.Add('An official gaze provider is active; keep that route or stop it using the vendor controls.') }
 if ($common) { $reasons.Add('A common provider is already running.') }
 $geometry = $false
