@@ -2,7 +2,7 @@
 
 NVIDIA VRSS2の設定と視線入力を扱うWindows用の試験版です。ZIPを任意の書き込み可能なフォルダーに展開してください。日本語・英語はTuner右上で切り替えられます。
 
-**開発者の確認環境はPimax Dream Air**です（GeForce RTX 5090／NVIDIAドライバー610.88）。貢献者が整理前ビルドでSteam Frame／596.02を確認しています。Frameは下記の専用手順を使ってください。[詳細な日本語ガイド](https://github.com/challenger0303/VRSS-Tuner/blob/main/docs/SETUP.ja.md)も参照してください。
+**開発者の確認環境はPimax Dream Air**です（GeForce RTX 5090／NVIDIAドライバー610.88）。貢献者が整理後のSteam Frame経路も596.02で実機確認しています。Frameは下記の専用手順を使ってください。[詳細な日本語ガイド](https://github.com/challenger0303/VRSS-Tuner/blob/main/docs/SETUP.ja.md)も参照してください。
 
 ## Steam Frame（596.02・実験対応）
 
@@ -41,7 +41,7 @@ SRanibro共通経路はローカルのBrokenEye形式ストリーム`127.0.0.1:5
 
 VRCFaceTrackingなどとの共存条件は[フェイストラッキング共存監査](FACE-TRACKING-COEXISTENCE.md)を参照してください。PICOの単一クライアント視線プローブはVRCFTと同時に使えません。VIVE/PSVR2などの実機同時動作はまだ未確認です。
 
-Pimax視線ブリッジはビルド時にバイナリがあれば`pimax-eye-bridge/driver_sranibro_eye.dll`に同梱します。自動では導入しません。片目だけ視線が有効なときは、その目の新しい方向を両目の入力に使います。両目とも無効、またはデータが古いときは視線を送信しません。この単眼時のHMD内の位置合わせは実機検証中です。VarjoブリッジもVarjo SDKでビルドした場合に同梱します。実際の同梱内容は`bundle-manifest.json`で確認してください。SRanibro本体とNVIDIA/Pimaxのドライバーは同梱していません。
+この全部入りリリース候補ZIPにはPimax視線ブリッジを`pimax-eye-bridge/driver_sranibro_eye.dll`に同梱します。自動では導入しません。片目だけ視線が有効なときは、その目の新しい方向を両目の入力に使います。両目とも無効、またはデータが古いときは視線を送信しません。この単眼時のHMD内の位置合わせは実機検証中です。Varjoブリッジも同梱しますが、Varjoランタイムは別途インストールが必要です。正確な内容とハッシュは`bundle-manifest.json`で確認してください。未検証HMDでの実機対応を保証するものではありません。SRanibro本体とNVIDIA/Pimaxのドライバーは同梱していません。
 
 ## 制約とファイル
 

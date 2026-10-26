@@ -2,7 +2,7 @@
 
 This is an experimental Windows app for NVIDIA VRSS2 settings and gaze input. Extract the ZIP to a writable folder. Switch Japanese/English at the top right of the tuner.
 
-**Upstream's verified setup is Pimax Dream Air** (GeForce RTX 5090 / NVIDIA driver 610.88). A contributor tested Steam Frame on 596.02 before cleanup; see the separate Frame instructions below. See the [full English setup guide](https://github.com/challenger0303/VRSS-Tuner/blob/main/docs/SETUP.md).
+**The maintainer's verified setup is Pimax Dream Air** (GeForce RTX 5090 / NVIDIA driver 610.88). A contributor also smoke-tested the cleaned Steam Frame route on 596.02; see the separate Frame instructions below. See the [full English setup guide](https://github.com/challenger0303/VRSS-Tuner/blob/main/docs/SETUP.md).
 
 ## Steam Frame (596.02, experimental)
 
@@ -41,7 +41,7 @@ The common SRanibro route reads the local BrokenEye-format stream on `127.0.0.1:
 
 Face-tracking coexistence is audited in [FACE-TRACKING-COEXISTENCE.md](FACE-TRACKING-COEXISTENCE.md) (Japanese). The PICO single-client diagnostic probe cannot share its session with the VRCFT PICO module. Concurrent VIVE and PSVR2 hardware operation has not been verified yet.
 
-When available at build time, the Pimax eye bridge binary is included at `pimax-eye-bridge/driver_sranibro_eye.dll`; it is not installed automatically. When only one eye has valid gaze, the bridge uses its fresh direction for both eye inputs. It submits no gaze when both eyes are invalid or data is stale. In-headset alignment of this monocular fallback is still being validated. SRanibro and the NVIDIA/Pimax drivers are not bundled. The Varjo bridge likewise requires a Varjo SDK build. Check `bundle-manifest.json` for the optional binaries in this ZIP.
+This full release-candidate ZIP includes the Pimax eye bridge at `pimax-eye-bridge/driver_sranibro_eye.dll`; it is not installed automatically. When only one eye has valid gaze, the bridge uses its fresh direction for both eye inputs. It submits no gaze when both eyes are invalid or data is stale. In-headset alignment of this monocular fallback is still being validated. SRanibro and the NVIDIA/Pimax drivers are not bundled. The Varjo bridge is also included, while the Varjo runtime must be installed separately. Check `bundle-manifest.json` for exact files and hashes. This build does not establish live headset compatibility for untested routes.
 
 ## Limits and files
 

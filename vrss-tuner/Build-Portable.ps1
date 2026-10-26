@@ -1,10 +1,22 @@
-param([string]$PimaxBridgeDll = '', [string]$VarjoSdk = '')
+param([string]$PimaxBridgeDll = '', [string]$VarjoSdk = '', [switch]$RequireAllBridges)
 $ErrorActionPreference = 'Stop'
 $here = $PSScriptRoot
 $research = Split-Path -Parent $here
 . (Join-Path $here 'Find-Vcvars.ps1')
 $vcvars = Find-Vcvars64
 $nvapi = Join-Path $research 'third_party\nvapi'
+$pimaxBuilt = if ($PimaxBridgeDll) { [IO.Path]::GetFullPath($PimaxBridgeDll) } else {
+    Join-Path $research 'pimax-eye-bridge\bin\driver_sranibro_eye.dll'
+}
+$varjoBuilt = Join-Path $research 'varjo-gaze-bridge\build\varjo_gaze_bridge.exe'
+if ($RequireAllBridges) {
+    if (-not (Test-Path -LiteralPath $pimaxBuilt -PathType Leaf)) {
+        throw "Required Pimax eye bridge is missing: $pimaxBuilt"
+    }
+    if (-not $VarjoSdk -and -not (Test-Path -LiteralPath $varjoBuilt -PathType Leaf)) {
+        throw "Required Varjo gaze bridge is missing: $varjoBuilt (or supply -VarjoSdk)"
+    }
+}
 $stamp = Get-Date -Format 'yyyyMMddTHHmmssfff'
 $release = Join-Path $here 'release'
 $bundle = Join-Path $release ('VRSS-Tuner-Portable-' + $stamp)
@@ -50,7 +62,6 @@ if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath (Join-Path $viveBridge 
 Remove-Item -LiteralPath (Join-Path $viveBridge 'ViveStreamingGazeBridge.pdb') -ErrorAction SilentlyContinue
 $varjoBridge = Join-Path $bundle 'varjo-gaze-bridge'
 New-Item -ItemType Directory -Path $varjoBridge -ErrorAction Stop | Out-Null
-$varjoBuilt = Join-Path $research 'varjo-gaze-bridge\build\varjo_gaze_bridge.exe'
 if ($VarjoSdk) {
     & (Join-Path $research 'varjo-gaze-bridge\build.ps1') -VarjoSdk $VarjoSdk | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'Varjo bridge build failed.' }
@@ -58,16 +69,15 @@ if ($VarjoSdk) {
 if (Test-Path -LiteralPath $varjoBuilt -PathType Leaf) {
     Copy-Item -LiteralPath $varjoBuilt -Destination (Join-Path $varjoBridge 'varjo_gaze_bridge.exe')
 } else {
+    if ($RequireAllBridges) { throw "Required Varjo gaze bridge is missing: $varjoBuilt" }
     Write-Warning 'Varjo SDK bridge is not bundled; supply -VarjoSdk to build it.'
 }
 $pimaxBridge = Join-Path $bundle 'pimax-eye-bridge'
 New-Item -ItemType Directory -Path $pimaxBridge -ErrorAction Stop | Out-Null
-$pimaxBuilt = if ($PimaxBridgeDll) { [IO.Path]::GetFullPath($PimaxBridgeDll) } else {
-    Join-Path $research 'pimax-eye-bridge\bin\driver_sranibro_eye.dll'
-}
 if (Test-Path -LiteralPath $pimaxBuilt -PathType Leaf) {
     Copy-Item -LiteralPath $pimaxBuilt -Destination (Join-Path $pimaxBridge 'driver_sranibro_eye.dll')
 } else {
+    if ($RequireAllBridges) { throw "Required Pimax eye bridge is missing: $pimaxBuilt" }
     Write-Warning 'Pimax eye-device bridge is not bundled; supply -PimaxBridgeDll if needed.'
 }
 foreach ($name in @('Test-Setup.ps1','Start-Provider.ps1','Stop-Provider.ps1','Start-VRChat-Candidate.ps1','Test-Setup.cmd','Start-Provider.cmd','Stop-Provider.cmd','Start-VRChat-Candidate.cmd','Start-PSVR2-Toolkit.cmd','Start-SRanibro.cmd','Start-Vive-Pro-Eye.cmd','Start-Vive-Streaming.cmd','Start-SteamVR-Eye.cmd','Start-Varjo.cmd')) {
@@ -83,6 +93,9 @@ Copy-Item -LiteralPath (Join-Path $research 'docs\HMD-GAZE-COMPATIBILITY.md') -D
 Copy-Item -LiteralPath (Join-Path $research 'LICENSE') -Destination (Join-Path $bundle 'LICENSE.txt') -ErrorAction Stop
 Copy-Item -LiteralPath (Join-Path $openvr 'LICENSE') -Destination (Join-Path $bundle 'OpenVR-LICENSE.txt') -ErrorAction Stop
 Copy-Item -LiteralPath (Join-Path $nvapi 'License.txt') -Destination (Join-Path $bundle 'NVAPI-LICENSE.txt')
+$notices = [IO.File]::ReadAllText((Join-Path $research 'THIRD_PARTY_NOTICES.md'))
+$notices = $notices.Replace('](LICENSE)', '](LICENSE.txt)').Replace('](third_party/nvapi/License.txt)', '](NVAPI-LICENSE.txt)').Replace('](third_party/openvr/LICENSE)', '](OpenVR-LICENSE.txt)')
+[IO.File]::WriteAllText((Join-Path $bundle 'THIRD_PARTY_NOTICES.md'), $notices, [Text.UTF8Encoding]::new($false))
 $files = @('VRSS Tuner.exe','openvr_api.dll','common-vrss-provider/common_vrss_provider.exe',
     'common-vrss-provider/export_openvr_geometry.exe','common-vrss-provider/openvr_api.dll',
     'common-vrss-provider/calibration.txt',
@@ -94,10 +107,15 @@ $files = @('VRSS Tuner.exe','openvr_api.dll','common-vrss-provider/common_vrss_p
     'Start-PSVR2-Toolkit.cmd','Start-SRanibro.cmd',
     'Start-Vive-Pro-Eye.cmd','Start-Vive-Streaming.cmd','Start-SteamVR-Eye.cmd','Start-Varjo.cmd',
     'README.md','README.en.md','FACE-TRACKING-COEXISTENCE.md',
-    'HMD-GAZE-COMPATIBILITY.md','LICENSE.txt',
+    'HMD-GAZE-COMPATIBILITY.md','LICENSE.txt','THIRD_PARTY_NOTICES.md',
     'OpenVR-LICENSE.txt','NVAPI-LICENSE.txt','STEAM-FRAME.md','DRIVER-CONTRACTS.md')
 foreach ($optional in @('varjo-gaze-bridge/varjo_gaze_bridge.exe','pimax-eye-bridge/driver_sranibro_eye.dll')) {
     if (Test-Path -LiteralPath (Join-Path $bundle $optional) -PathType Leaf) { $files += $optional }
+}
+if ($RequireAllBridges) {
+    foreach ($required in @('varjo-gaze-bridge/varjo_gaze_bridge.exe','pimax-eye-bridge/driver_sranibro_eye.dll')) {
+        if ($required -notin $files) { throw "Full portable bundle is missing: $required" }
+    }
 }
 $entries = foreach ($name in $files) {
     [ordered]@{path=$name;sha256=(Get-FileHash -LiteralPath (Join-Path $bundle $name) -Algorithm SHA256).Hash}
