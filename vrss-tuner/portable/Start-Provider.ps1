@@ -104,7 +104,8 @@ Copy-Item -LiteralPath (Join-Path $data 'preflight\geometry.txt') -Destination (
 $InputRoute | Set-Content -LiteralPath (Join-Path $run 'input-route.txt') -Encoding ASCII
 $powershell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
 $argsText = '-NoProfile -ExecutionPolicy Bypass -File "' + $PSCommandPath + '" -Worker -RunDirectory "' + $run + '" -InputRoute ' + $InputRoute
-$worker = Start-Process -FilePath $powershell -ArgumentList $argsText -Verb RunAs -WindowStyle Hidden -PassThru
+$workerProcess = Start-Process -FilePath $powershell -ArgumentList $argsText -Verb RunAs -WindowStyle Hidden -PassThru
+if (-not $workerProcess) { throw 'Could not start the elevated provider worker.' }
 $run | Set-Content -LiteralPath (Join-Path $data 'active-run.txt') -Encoding UTF8
 $deadline = (Get-Date).AddSeconds(8)
 do {
