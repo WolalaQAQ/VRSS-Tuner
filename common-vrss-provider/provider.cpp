@@ -348,7 +348,7 @@ int RunVrssProvider(int argc,wchar_t** argv,const std::function<bool()>& keepRun
         if(!frameInput)input=std::make_unique<Input>(udp,port);
         SetConsoleCtrlHandler(Control,TRUE);
         const double seconds=args.count(L"--seconds")?std::stod(args.at(L"--seconds")):1200;
-        if(seconds<=0||seconds>3600)throw std::runtime_error("Duration must be 1..3600 seconds");
+        if(seconds<=0||seconds>86400)throw std::runtime_error("Duration must be 1..86400 seconds");
         const auto started=Clock::now();auto next=started,nextStatus=started,nextConfig=started;
         uint64_t sent=0,freshCount=0,activeCount=0,failed=0,lastSequence=0,lastQpc=0;
         const bool ownerLifetime=frameInput && bool(keepRunning);

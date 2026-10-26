@@ -1,6 +1,7 @@
 param([ValidateSet('Baballonia','PSVR2Toolkit','SRanibro','ViveProEye','ViveStreaming','SteamVREye','Varjo')]
       [string]$InputRoute='Baballonia',
-      [ValidateRange(0,30)][int]$HotAttachWaitSeconds=8)
+      [ValidateRange(0,30)][int]$HotAttachWaitSeconds=8,
+      [switch]$ProviderOnly,[switch]$WaitForHeadset)
 $ErrorActionPreference = 'Stop'
 $bundle = $PSScriptRoot
 $gameWasRunning = [bool](Get-Process VRChat -ErrorAction SilentlyContinue)
@@ -53,6 +54,13 @@ function Test-NvidiaConsumer {
 }
 
 try {
+    if ($WaitForHeadset -and $InputRoute -eq 'SRanibro') {
+        $deadline = (Get-Date).AddSeconds(120)
+        while (-not (Get-Process SRanibro -ErrorAction SilentlyContinue)) {
+            if ((Get-Date) -ge $deadline) { throw 'SRanibro did not start within 120 seconds.' }
+            Start-Sleep -Seconds 1
+        }
+    }
     if (-not (Get-Process vrserver -ErrorAction SilentlyContinue)) {
         Write-Output 'Starting SteamVR...'
         Start-SteamApp 250820
@@ -62,14 +70,15 @@ try {
     }
 
     $setup = $null
-    for ($attempt = 0; $attempt -lt 3; $attempt++) {
+    $attempts = if ($WaitForHeadset) { 40 } else { 3 }
+    for ($attempt = 0; $attempt -lt $attempts; $attempt++) {
         $setup = & (Join-Path $bundle 'Test-Setup.ps1') -AllowRunningVRChat:$gameWasRunning | ConvertFrom-Json
         if ($setup.readyForProviderLaunch) { break }
         $transient = @($setup.reasons | Where-Object {
             $_ -in @('Start SteamVR with a connected HMD.',
                      'Could not read and validate the connected HMD geometry.')
         })
-        if ($attempt -eq 2 -or $transient.Count -ne @($setup.reasons).Count) { break }
+        if ($attempt -eq ($attempts - 1) -or $transient.Count -ne @($setup.reasons).Count) { break }
         Start-Sleep -Seconds 3
     }
     if (-not $setup.readyForProviderLaunch) {
@@ -89,6 +98,15 @@ try {
         throw 'The common gaze provider did not stay running.'
     }
     $providerStarted = $true
+
+    if ($ProviderOnly) {
+        if ($needsKeyedLaunch) {
+            Write-Output 'Gaze provider ready. To launch VRChat later, use Start-VRChat-HMD-Key.cmd or configure Install-Steam-Launch-Bridge.cmd once and launch through Steam.'
+        } else {
+            Write-Output 'Gaze provider ready. You can launch VRChat later through Steam.'
+        }
+        return
+    }
 
     if ($needsKeyedLaunch -and (Get-Process VRChat -ErrorAction SilentlyContinue)) {
         Close-VRChatNormally

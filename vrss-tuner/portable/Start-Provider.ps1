@@ -42,7 +42,7 @@ if ($Worker) {
     $source = if ($InputRoute -eq 'SRanibro') { 'tcp' } else { 'udp' }
     $port = if ($InputRoute -eq 'SRanibro') { 5555 } else { 5556 }
     try {
-        & $provider --geometry $geometry --config $calibration --output $resolved --source $source --port $port --seconds 3600 `
+        & $provider --geometry $geometry --config $calibration --output $resolved --source $source --port $port --seconds 86400 `
             1> (Join-Path $resolved 'provider.stdout.txt') 2> (Join-Path $resolved 'provider.stderr.txt')
         $LASTEXITCODE | Set-Content -LiteralPath (Join-Path $resolved 'exit-code.txt') -Encoding ASCII
     } catch {
@@ -119,7 +119,7 @@ do {
         if ($InputRoute -eq 'PSVR2Toolkit') {
             $bridge = Join-Path $bundle 'psvr2-gaze-bridge\psvr2_gaze_bridge.exe'
             $bridgeArgs = '--geometry "' + (Join-Path $run 'geometry.txt') + '" --config "' + $calibration +
-                '" --stop-file "' + (Join-Path $run 'stop.request') + '" --port 5556 --seconds 3600'
+                '" --stop-file "' + (Join-Path $run 'stop.request') + '" --port 5556 --seconds 86400'
             $gaze = Start-Process -FilePath $bridge -ArgumentList $bridgeArgs -WindowStyle Hidden -PassThru
             $gaze.Id | Set-Content -LiteralPath (Join-Path $run 'psvr2-bridge.pid') -Encoding ASCII
         } elseif ($InputRoute -in @('ViveProEye','ViveStreaming')) {
@@ -132,14 +132,14 @@ do {
             }
             $bridgeArgs = '--geometry "' + (Join-Path $run 'geometry.txt') + '" --config "' + $calibration +
                 '" --stop-file "' + (Join-Path $run 'stop.request') + '" --source ' + $source +
-                ' --sdk "' + $viveSdk + '" --port 5556 --seconds 3600'
+                ' --sdk "' + $viveSdk + '" --port 5556 --seconds 86400'
             $gaze = Start-Process -FilePath $bridge -ArgumentList $bridgeArgs -WindowStyle Hidden -PassThru
             $gaze.Id | Set-Content -LiteralPath (Join-Path $run 'vive-bridge.pid') -Encoding ASCII
         } elseif ($InputRoute -eq 'SteamVREye') {
             $bridge = Join-Path $bundle 'steamvr-gaze-bridge\steamvr_gaze_bridge.exe'
             $bridgeArgs = '--geometry "' + (Join-Path $run 'geometry.txt') + '" --config "' + $calibration +
                 '" --manifest "' + (Join-Path $bundle 'steamvr-gaze-bridge\eye_actions.json') +
-                '" --stop-file "' + (Join-Path $run 'stop.request') + '" --port 5556 --seconds 3600'
+                '" --stop-file "' + (Join-Path $run 'stop.request') + '" --port 5556 --seconds 86400'
             $gaze = Start-Process -FilePath $bridge -ArgumentList $bridgeArgs -WindowStyle Hidden -PassThru
             $gaze.Id | Set-Content -LiteralPath (Join-Path $run 'steamvr-bridge.pid') -Encoding ASCII
         } elseif ($InputRoute -eq 'Varjo') {
@@ -154,7 +154,7 @@ do {
             $xGain = [double]::Parse($gainValues['x_gain'],$culture).ToString($culture)
             $yGain = [double]::Parse($gainValues['y_gain'],$culture).ToString($culture)
             $bridgeArgs = '--geometry "' + (Join-Path $run 'geometry.txt') +
-                '" --x-gain ' + $xGain + ' --y-gain ' + $yGain + ' --port 5556 --seconds 3600'
+                '" --x-gain ' + $xGain + ' --y-gain ' + $yGain + ' --port 5556 --seconds 86400'
             $gaze = Start-Process -FilePath $bridge -ArgumentList $bridgeArgs -WindowStyle Hidden -PassThru
             $gaze.Id | Set-Content -LiteralPath (Join-Path $run 'varjo-bridge.pid') -Encoding ASCII
         }

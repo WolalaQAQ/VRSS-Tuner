@@ -1,0 +1,13 @@
+{
+  "source": "builtin",
+  "applications": [{
+    "app_key": "vrss.tuner.autostart",
+    "launch_type": "binary",
+    "binary_path_windows": "steamvr_autostart.exe",
+    "is_dashboard_overlay": true,
+    "strings": {
+      "en_us": {"name": "VRSS Tuner startup"},
+      "ja_jp": {"name": "VRSS Tuner 自動起動"}
+    }
+  }]
+}

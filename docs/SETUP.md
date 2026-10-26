@@ -15,12 +15,16 @@ This guide covers the native Pimax and common-provider routes. Steam Frame on NV
 
 1. Download the portable ZIP from [Releases](https://github.com/challenger0303/VRSS-Tuner/releases). Extract the **entire ZIP** to a writable directory; do not copy only `VRSS Tuner.exe`. Open the tuner and choose a language at the top right.
 2. **Native Pimax XR5:** Enable headset eye tracking, select **Pimax path (native priority)** in Gaze input, turn VRSS **On** in Graphics and apply it. Start SteamVR and VRChat normally. Do not run the common-provider scripts.
-3. **Common provider with SRanibro, PSVR2 Toolkit or another source:** Start the headset and its gaze software, then connect SteamVR. Select one source in Gaze input, turn VRSS **On** in Graphics and apply it, then click **Start common path + VRChat**. This runs setup checks and starts the provider. Approve the Windows administrator prompt manually. A route requiring the fixed HMD key may normally close and relaunch an already-running VRChat.
+3. **Common provider with SRanibro, PSVR2 Toolkit or another source:** Start the headset and its gaze software, then connect SteamVR. Select one source in Gaze input, turn VRSS **On** in Graphics and apply it, then click **Start gaze path only**. This runs setup checks and starts the provider without touching VRChat. Approve the Windows administrator prompt manually. You can launch VRChat yourself afterward.
 4. **Steam Frame:** Follow the [Frame guide](STEAM-FRAME.md) instead of the common launch button.
 5. Enable MSAA in VRChat's Graphics settings. Start with x4 for comparison. Verify in the headset that a high-quality region appears in both eyes and follows gaze horizontally and vertically. A green status in the tuner alone does not prove the rendered effect.
 6. When finished with the common route, run `Stop-Provider.cmd`. This leaves VRChat, SteamVR and vendor providers running. The native Pimax route does not need this script.
 
 For a manual, read-only common-route check, run `Test-Setup.cmd`. If `driverSupported` or `vrssAllowed` is false, the common provider cannot start on that setup. `Start-Provider.cmd` is for provider-only diagnostics. Baballonia sends binocular OSC to `127.0.0.1:9020` by default.
+
+For a later launch with a fixed HMD key, first start the provider, then run `Start-VRChat-HMD-Key.cmd`. To use Steam's normal Play button, run `Install-Steam-Launch-Bridge.cmd` once and paste its launch option into Steam > VRChat > Properties > General. The Steam launch bridge has only passed synthetic launch tests; it has not been verified with protected VRChat. The HMD ID is fixed when VRChat starts and cannot be changed in the running process. A temporary gaze-source dropout can recover without restarting VRChat while the provider remains registered. Reconnecting after stopping and re-registering the provider itself has not yet been verified.
+
+To start the tuner and selected common gaze path when SteamVR starts, keep the extracted bundle in a fixed location, start SteamVR, and run `Install-SteamVR-Autostart.cmd` once. If SteamVR does not yet recognize the registered application, restart SteamVR normally and run the command again. On later starts it opens the tuner and attempts to start the selected provider. The HMD and gaze software must be ready; Windows administrator confirmation may appear. Wait for the provider status before launching VRChat. Run `Remove-SteamVR-Autostart.cmd` to disable it. The SteamVR startup ordering has not yet been validated with live hardware.
 
 ## Live status in the tuner
 

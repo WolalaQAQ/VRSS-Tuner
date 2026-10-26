@@ -139,7 +139,7 @@ int wmain(int argc,wchar_t** argv) {
         int port=args.count(L"--port")?std::stoi(args.at(L"--port")):5556;
         if(port<1||port>65535) throw std::runtime_error("Invalid port");
         const double seconds=args.count(L"--seconds")?std::stod(args.at(L"--seconds")):3600;
-        if(!std::isfinite(seconds)||seconds<=0||seconds>3600) throw std::runtime_error("Invalid duration");
+        if(!std::isfinite(seconds)||seconds<=0||seconds>86400) throw std::runtime_error("Invalid duration");
         WSADATA wd{};
         if(WSAStartup(MAKEWORD(2,2),&wd)) throw std::runtime_error("Winsock failed");
         winsock=true;

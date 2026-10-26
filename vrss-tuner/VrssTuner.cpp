@@ -449,7 +449,7 @@ enum ControlId {
     kGazeLeftMinus, kGazeLeftPlus, kGazeRightMinus, kGazeRightPlus, kGazeInvert,
     kGazeRefresh, kGazeApply, kGazeRestore, kGazeReset,
     kAreaSlider, kEstimateMsaa, kProfileName, kProfileSave, kProfileSwitch,
-    kInputTab, kInputPort, kInputForward, kInputStart, kInputStop, kInputStatus, kPreviewZoom,
+    kInputTab, kInputPort, kInputForward, kInputStart, kInputProviderOnly, kInputStop, kInputStatus, kPreviewZoom,
     kLanguage, kFrameTab, kFrameStart, kFrameStop, kFrameLaunch
 };
 struct Ui {
@@ -457,7 +457,7 @@ struct Ui {
     ProfileValues loaded{};
     bool loadedOk{};
     HWND driverTab{}, gazeTab{}, gazeSourceLabel{}, gazePathNote{}, gazeX{}, gazeY{}, gazeLeft{}, gazeRight{}, gazeInvert{}, gazeStatus{}, gazeApply{}, gazeRestore{};
-    HWND profileName{}, profileSave{}, profileSwitch{}, inputTab{}, gazeSource{}, sourceNote{}, inputPort{}, inputForward{}, inputStart{}, inputStop{}, inputStatus{}, liveMonitor{}, previewZoom{}, language{};
+    HWND profileName{}, profileSave{}, profileSwitch{}, inputTab{}, gazeSource{}, sourceNote{}, inputPort{}, inputForward{}, inputStart{}, inputProviderOnly{}, inputStop{}, inputStatus{}, liveMonitor{}, previewZoom{}, language{};
     live::Target target{live::Target::Pimax};
     live::Snapshot gazeLoaded{};
     bool gazeLoadedOk{};
@@ -573,7 +573,7 @@ void applyLanguage() {
         SendMessageW(gUi.gazeSource,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(translated.c_str()));
     }
     SendMessageW(gUi.gazeSource,CB_SETCURSEL,source,0);
-    for (HWND handle : {gUi.status, gUi.gazeStatus, gUi.inputStatus,gUi.inputStart,gUi.frameStatus,gUi.gazeSourceLabel,gUi.gazePathNote,gUi.sourceNote,
+    for (HWND handle : {gUi.status, gUi.gazeStatus, gUi.inputStatus,gUi.inputStart,gUi.inputProviderOnly,gUi.frameStatus,gUi.gazeSourceLabel,gUi.gazePathNote,gUi.sourceNote,
                         gUi.regionArea, gUi.regionCost, gUi.regionNote, gUi.installInfo}) {
         auto found = gOriginalText.find(handle);
         if (found != gOriginalText.end()) {
@@ -1525,14 +1525,15 @@ void updateInputStatus() {
     EnableWindow(gUi.inputForward, source == 1 && !gInputRelay.Running());
     EnableWindow(gUi.inputStart, source==0 ? (!sranibro && pimaxService.found && !pimaxService.running) :
                  source==1 ? !gInputRelay.Running() : !common && !vendor);
+    EnableWindow(gUi.inputProviderOnly, source>=1 && !common && !vendor);
     EnableWindow(gUi.inputStop, source == 1 ? gInputRelay.Running() : source>=2 && common);
 }
-void runPortableScript(const wchar_t* fileName) {
+void runPortableScript(const wchar_t* fileName, const wchar_t* arguments=nullptr) {
     if (gResearch.empty()) return;
     auto script=gResearch/fileName;
     if (!std::filesystem::is_regular_file(script)) script=gResearch/L"vrss-tuner"/L"portable"/fileName;
     if (!std::filesystem::is_regular_file(script) ||
-        reinterpret_cast<INT_PTR>(ShellExecuteW(gUi.window,L"open",script.c_str(),nullptr,script.parent_path().c_str(),SW_SHOWNORMAL))<=32)
+        reinterpret_cast<INT_PTR>(ShellExecuteW(gUi.window,L"open",script.c_str(),arguments,script.parent_path().c_str(),SW_SHOWNORMAL))<=32)
         localizedMessageBox(gUi.window,L"起動スクリプトを開けませんでした。",L"視線入力",MB_ICONWARNING);
 }
 void startInputRelay() {
@@ -1789,14 +1790,15 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
         control(L"STATIC",L"VRCFaceTrackingへ転送する場合は8888",SS_LEFT,335,190,320,23);
         gUi.inputStart=control(L"BUTTON",L"配信を開始",WS_TABSTOP | BS_PUSHBUTTON,20,240,145,32,kInputStart);
         gUi.inputStop=control(L"BUTTON",L"停止",WS_TABSTOP | BS_PUSHBUTTON,180,240,105,32,kInputStop);
+        gUi.inputProviderOnly=control(L"BUTTON",L"視線経路だけ起動",WS_TABSTOP | BS_PUSHBUTTON,20,280,180,32,kInputProviderOnly);
         control(L"STATIC",L"表示倍率",SS_LEFT,350,245,110,23);
         gUi.previewZoom=control(L"COMBOBOX",L"",CBS_DROPDOWNLIST | WS_TABSTOP | WS_VSCROLL,470,240,100,110,kPreviewZoom);
         for(const wchar_t* label:{L"1x",L"2x",L"3x",L"4x"})
             SendMessageW(gUi.previewZoom,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(label));
         gPreviewZoom=readPreviewZoom();
         SendMessageW(gUi.previewZoom,CB_SETCURSEL,gPreviewZoom-1,0);
-        gUi.inputStatus=control(L"EDIT",L"停止中",WS_BORDER | ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | WS_VSCROLL,20,282,650,78,kInputStatus);
-        gUi.liveMonitor=control(L"VrssLiveMonitor",L"",0,20,370,650,262);
+        gUi.inputStatus=control(L"EDIT",L"停止中",WS_BORDER | ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | WS_VSCROLL,20,320,650,78,kInputStatus);
+        gUi.liveMonitor=control(L"VrssLiveMonitor",L"",0,20,405,650,225);
         gUi.sourceNote=control(L"STATIC",L"",SS_LEFT,20,642,650,28);
         gCreatingPanel=3;
         control(L"STATIC",L"Steam Frame / NVIDIA 596.02",SS_LEFT,20,105,650,28);
@@ -1915,6 +1917,15 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                     gSelectedSource.load()==5?L"Start-Vive-Streaming.cmd":
                     gSelectedSource.load()==6?L"Start-SteamVR-Eye.cmd":L"Start-Varjo.cmd");
                 return 0;
+            case kInputProviderOnly: {
+                const int source=gSelectedSource.load();
+                if (source<1 || source>7 || processCount(L"common_vrss_provider.exe") ||
+                    processCount(L"vrss_gaze_provider.exe")) return 0;
+                const wchar_t* routes[]={L"",L"Baballonia",L"PSVR2Toolkit",L"SRanibro",
+                    L"ViveProEye",L"ViveStreaming",L"SteamVREye",L"Varjo"};
+                runPortableScript(L"Start-Provider-Only.cmd",routes[source]);
+                return 0;
+            }
             case kInputStop:
                 if (gSelectedSource.load()==1) gInputRelay.Stop();
                 else if (gSelectedSource.load()>=2) runPortableScript(L"Stop-Provider.cmd");

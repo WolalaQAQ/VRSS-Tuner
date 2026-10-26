@@ -277,7 +277,7 @@ internal static class Program
             var port = int.Parse(args.GetValueOrDefault("--port", "5556"), CultureInfo.InvariantCulture);
             if (port is < 1 or > 65535) throw new ArgumentException("Invalid port");
             var seconds = int.Parse(args.GetValueOrDefault("--seconds", "3600"), CultureInfo.InvariantCulture);
-            if (seconds is < 1 or > 3600) throw new ArgumentException("Invalid duration");
+            if (seconds is < 1 or > 86400) throw new ArgumentException("Invalid duration");
             var module = LoadLibraryExW(sdk, IntPtr.Zero, 0x8);
             if (module == IntPtr.Zero) throw new InvalidOperationException($"VIVE SDK load failed: {Marshal.GetLastWin32Error()}");
             try

@@ -236,6 +236,7 @@ inline std::wstring Text(std::wstring value) {
         {L"表示倍率", L"Display zoom"},
         {L"共通経路を起動", L"Start common path"},
         {L"共通経路＋VRChatを起動", L"Start common path + VRChat"},
+        {L"視線経路だけ起動", L"Start gaze path only"},
         {L"起動スクリプトを開けませんでした。", L"Could not open the launch script."},
         {L"停止", L"Stop"},
         {L"Pimax経路", L"Pimax path"},

@@ -15,12 +15,16 @@ Pimax純正経路と共通プロバイダー経路の起動手順です。NVIDIA
 
 1. [Releases](https://github.com/challenger0303/VRSS-Tuner/releases)からポータブルZIPを取得し、**全体を**書き込み可能なフォルダーに展開します。`VRSS Tuner.exe`だけを取り出さないでください。Tunerを開き、右上で言語を選びます。
 2. **Pimax純正XR5を使う場合：** HMDとPimaxの視線機能を有効にし、Tunerの「視線入力」で「Pimax経路（純正優先）」を選びます。「画質」でVRSSをオンにして適用し、SteamVRとVRChatを通常どおり起動します。共通プロバイダー用の起動スクリプトは使いません。
-3. **SRanibro・PSVR2 Toolkitなどの共通経路を使う場合：** HMDと対応する視線ソフトを起動し、SteamVRを接続します。Tunerの「視線入力」で入力元を一つ選び、「画質」でVRSSをオンにして適用します。「共通経路＋VRChatを起動」を押します。導入診断とプロバイダー起動は自動で行われます。Windowsの管理者確認は手動で承認してください。固定HMDキーが必要な経路では、起動中のVRChatが通常終了して再起動することがあります。
+3. **SRanibro・PSVR2 Toolkitなどの共通経路を使う場合：** HMDと対応する視線ソフトを起動し、SteamVRを接続します。Tunerの「視線入力」で入力元を一つ選び、「画質」でVRSSをオンにして適用します。「視線経路だけ起動」を押すと、導入診断とプロバイダー起動だけを行い、VRChatには触れません。Windowsの管理者確認は手動で承認してください。VRChatは後から自分で起動できます。
 4. **Steam Frameの場合：** 上記の共通起動ボタンではなく、[Frame専用手順](STEAM-FRAME.md)に従います。
 5. VRChatの「設定 → グラフィック」でMSAAを有効にします。比較にはx4から始め、HMD内で高画質領域が両目に現れ、視線の左右・上下に追従するか確認します。Tunerの緑の表示だけでは実際の画質変化は証明できません。
 6. 共通経路の終了時は`Stop-Provider.cmd`を実行します。VRChat、SteamVR、ベンダーのプロバイダーは終了しません。Pimax純正経路ではこのスクリプトは不要です。
 
 共通経路の診断だけを手動で行う場合は`Test-Setup.cmd`を使えます。`driverSupported`または`vrssAllowed`がfalseなら、この構成では共通プロバイダーを起動できません。`Start-Provider.cmd`はプロバイダー単体の手動診断用です。Baballonia OSCは既定で`127.0.0.1:9020`に左右視線を送ります。
+
+固定HMDキーを使う構成でVRChatを後から起動する場合は、先にプロバイダーを起動し、`Start-VRChat-HMD-Key.cmd`を実行します。Steamの通常の起動ボタンを使いたい場合は、`Install-Steam-Launch-Bridge.cmd`の表示する起動オプションをSteamの「VRChat → プロパティ → 一般」に一度設定します。このSteam起動ブリッジは模擬起動のみ確認済みで、保護付きVRChatでの実動作は未検証です。IDはVRChat起動時に決まり、実行中には書き換えられません。視線ソフトの一時停止からの復帰はプロバイダーが登録を保っている間なら再起動なしで可能ですが、プロバイダー自体を停止・再登録した場合のVRChat再接続は未確認です。
+
+SteamVRを開いたときにTunerと選択中の共通視線経路も起動したい場合は、展開先を固定してSteamVRを起動し、`Install-SteamVR-Autostart.cmd`を一度実行します。登録直後にSteamVRがアプリを認識しない場合は、SteamVRを通常終了・再起動してから同じコマンドを再実行します。以後、TunerはSteamVR起動時に開き、選択中の視線入力に合わせたプロバイダー起動を試みます。HMDと視線ソフトの準備が必要で、管理者確認が出る場合があります。Tunerの状態表示でプロバイダーが稼働したことを確認してからVRChatを起動してください。解除には`Remove-SteamVR-Autostart.cmd`を使います。このSteamVR自動起動経路はコードを追加した段階で、実機での起動順は未検証です。
 
 ## Tunerの動作表示
 

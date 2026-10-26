@@ -105,7 +105,24 @@ try {
             throw "Common session failed to restore VRChat after $failure failure."
         }
     }
-    Write-Output 'COMMON_SESSION_PASS hot_attach fallback_restart steamvr preflight provider candidate_launch failure_preserves_game no_UAC'
+    foreach ($gameRunning in @($false,$true)) {
+        $global:VrssSessionEvents = [Collections.Generic.List[string]]::new()
+        $global:VrssSessionGame = $gameRunning
+        $global:VrssSessionSteamVr = $true
+        $global:VrssSessionProvider = $false
+        $global:VrssSessionCandidate = $false
+        $global:VrssSessionHmdTestBranch = $true
+        $global:VrssSessionReady = $true
+        $global:VrssSessionProviderFails = $false
+        $global:VrssSessionHotConsumer = $false
+        $output = & (Join-Path $fixture 'Start-Common-Session.ps1') -InputRoute SRanibro -ProviderOnly
+        if (($global:VrssSessionEvents -join ',') -ne 'preflight,provider' -or
+            $global:VrssSessionGame -ne $gameRunning -or -not $global:VrssSessionProvider -or
+            -not (@($output) -match 'Gaze provider ready')) {
+            throw "Provider-only mode unexpectedly touched VRChat: $($global:VrssSessionEvents -join ',')"
+        }
+    }
+    Write-Output 'COMMON_SESSION_PASS hot_attach fallback_restart steamvr preflight provider candidate_launch provider_only_preserves_game failure_preserves_game no_UAC'
 } finally {
     $env:LOCALAPPDATA = $previousLocalAppData
     foreach ($name in @('VrssSessionFakeGame','VrssSessionEvents','VrssSessionGame',

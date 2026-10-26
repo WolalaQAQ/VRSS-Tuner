@@ -93,7 +93,7 @@ int wmain(int argc,wchar_t** argv) {
         }
         const int port=args.count(L"--port")?std::stoi(args.at(L"--port")):5556;
         const int seconds=args.count(L"--seconds")?std::stoi(args.at(L"--seconds")):3600;
-        if(port<1||port>65535||seconds<1||seconds>3600)throw std::runtime_error("Invalid port or duration");
+        if(port<1||port>65535||seconds<1||seconds>86400)throw std::runtime_error("Invalid port or duration");
         if(!varjo_IsAvailable())throw std::runtime_error("Varjo runtime unavailable");
         session=varjo_SessionInit();if(!session)throw std::runtime_error("Varjo session unavailable");
         if(!varjo_IsGazeAllowed(session))throw std::runtime_error("Varjo Base eye permission disabled");

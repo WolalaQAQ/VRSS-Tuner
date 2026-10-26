@@ -12,6 +12,8 @@ NVIDIA VRSS2の設定と視線入力を扱うWindows用の試験版です。ZIP�
 4. **その他の視線入力**なら、HMDと視線ソフトを起動し、TunerでVRSSをオンにして入力元を選び、「共通経路＋VRChatを起動」を押します。VRChatが動作中なら後付け接続を先に試し、NVIDIAの受信側が見つからない場合だけ通常終了・再起動します。必要ならSteamVRも起動します。Windowsの管理者確認だけは手動で承認してください。
 5. VRChatのグラフィック設定でMSAAを有効にし、HMD内で両目の高画質領域が視線に追従するか確認します。Tunerの緑の表示だけでは画質の変化は確認できません。
 
+VRChatを後から自分で起動したいときは「視線経路だけ起動」を押します。固定ID構成では`Start-VRChat-HMD-Key.cmd`で後から起動するか、`Install-Steam-Launch-Bridge.cmd`の案内に従ってSteamのVRChat起動オプションを一度設定してください。さらに`Install-SteamVR-Autostart.cmd`を設定すると、次回以降SteamVRがTunerと選択中の共通視線経路を起動します。SteamVRの再起動後に再度インストールコマンドが必要な場合があります。HMDと視線ソフトを準備し、管理者確認が出たら承認してください。VRChatを起動する前にTunerでプロバイダー稼働を確認します。解除は`Remove-SteamVR-Autostart.cmd`です。Steam起動ブリッジとSteamVR自動起動は実機未検証です。
+
 他のPCや未検証HMDでの動作は保証していません。共通経路では監査済みドライバー実体と、VRSSを許可するNVIDIAのVRChatプロファイルが必要です。診断が失敗した場合は、その理由を確認してください。
 
 ## Steam Frame（596.02・実験対応）

@@ -107,7 +107,7 @@ int wmain(int argc,wchar_t** argv) {
         if(!fs::is_regular_file(manifest))throw std::runtime_error("Eye action manifest missing");
         const int port=options.count(L"--port")?std::stoi(options.at(L"--port")):5556;
         const int seconds=options.count(L"--seconds")?std::stoi(options.at(L"--seconds")):3600;
-        if(port<1||port>65535||seconds<1||seconds>3600)throw std::runtime_error("Invalid port or duration");
+        if(port<1||port>65535||seconds<1||seconds>86400)throw std::runtime_error("Invalid port or duration");
         vr::EVRInitError init=vr::VRInitError_None;
         auto* system=vr::VR_Init(&init,vr::VRApplication_Background);
         if(!system||init!=vr::VRInitError_None)throw std::runtime_error("SteamVR is unavailable");

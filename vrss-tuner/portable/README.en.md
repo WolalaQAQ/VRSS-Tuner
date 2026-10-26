@@ -12,6 +12,8 @@ This is an experimental Windows app for NVIDIA VRSS2 settings and gaze input. Ex
 4. For **other gaze sources**, connect the headset, start its gaze software, enable VRSS and select a source in the tuner, then click **Start common path + VRChat**. The launcher first tries to connect to an already-running VRChat, and restarts it normally only if NVIDIA does not report a consumer. It also starts SteamVR if needed. Windows administrator confirmation still needs a manual click.
 5. Enable MSAA in VRChat's graphics settings. Verify in the headset that the high-quality region follows gaze in both eyes. A green tuner status alone does not prove the rendered result.
 
+To start VRChat yourself later, click **Start gaze path only**. With a fixed HMD ID, launch later using `Start-VRChat-HMD-Key.cmd`, or run `Install-Steam-Launch-Bridge.cmd` and configure the VRChat launch option in Steam once. Optionally run `Install-SteamVR-Autostart.cmd` so future SteamVR starts open the tuner and selected common gaze path. You may need to rerun the installer after restarting SteamVR. Have the headset and gaze software ready, approve any Windows administrator prompt, and check provider status before starting VRChat. `Remove-SteamVR-Autostart.cmd` disables it. The Steam launch bridge and SteamVR startup sequence have not been verified on live hardware.
+
 Other PCs and untested headsets are not guaranteed to work. The common path requires an audited driver image and an NVIDIA VRChat profile that allows VRSS. If setup fails, use its reported reason.
 
 ## Steam Frame (596.02, experimental)
