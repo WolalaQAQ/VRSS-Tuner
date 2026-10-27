@@ -14,7 +14,7 @@
 - Rotate subscription identity after ACK timeout and reject stale, invalid or unconfirmed samples.
 
 ### Notes & Caveats
-- Requires a development PicoFacialBridge implementing the independent gaze protocol; published Bridge 0.5.0 APKs do not support it.
+- Requires PicoFacialBridge 0.6.0 or later, which implements the independent gaze protocol; Bridge 0.5.0 APKs do not support it.
 - Two normal EAC-protected VRChat sessions on 616.92 reached one consumer and recorded 3,503 and 8,966 successful real-gaze submissions with zero submission errors. The second started with MSAA x4. The wearer could not identify a visible quality-region change.
 - Actual module coexistence and Bridge process restart were exercised separately; real Cymple mouth input and complete data recovery after an internal tracking-service reopen remain unconfirmed.
 - Final source integration is compile/static checked; its source-switching changes have not received a new runtime or headset test.

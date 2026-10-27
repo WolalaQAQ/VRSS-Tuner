@@ -11,7 +11,7 @@ function Get-PicoHeadsetIp([string]$DataDirectory,[string]$HeadsetIp) {
         $HeadsetIp = ([IO.File]::ReadAllText($path)).TrimEnd("`r", "`n")
     }
     if (-not (Test-PicoHeadsetIp $HeadsetIp)) {
-        throw 'Enter and save the PICO headset IPv4 address in Tuner, or supply -HeadsetIp. A development PicoFacialBridge with direct gaze subscriptions is required; released Bridge 0.5.0 is not supported.'
+        throw 'Enter and save the PICO headset IPv4 address in Tuner, or supply -HeadsetIp. PicoFacialBridge 0.6.0 or later with direct gaze subscriptions is required; Bridge 0.5.0 is not supported.'
     }
     return $HeadsetIp
 }

@@ -1,15 +1,15 @@
 # PICO direct native-gaze input
 
-PICO headsets with eye-tracking hardware can send a measured combined gaze direction through a development PicoFacialBridge. The PC client subscribes directly, projects that head-relative ray into the current OpenVR eye views, and sends the common provider's 44-byte normalized UDP input. It does not require VRCFT or a relay.
+PICO headsets with eye-tracking hardware can send a measured combined gaze direction through PicoFacialBridge 0.6.0 or later. The PC client subscribes directly, projects that head-relative ray into the current OpenVR eye views, and sends the common provider's 44-byte normalized UDP input. It does not require VRCFT or a relay.
 
-Published Bridge 0.5.0 APKs do not implement the independent gaze protocol. Use a compatible development Bridge build. The ordinary PICO 4 has no built-in eye tracker; Neo3 Pro Eye has not been hardware-validated with this adapter.
+Bridge 0.5.0 APKs do not implement the independent gaze protocol. Use [PicoFacialBridge 0.6.0 or later](https://github.com/WolalaQAQ/PicoFacialBridge/releases). The ordinary PICO 4 has no built-in eye tracker; Neo3 Pro Eye has not been hardware-validated with this adapter.
 
 ## Setup
 
 1. Run the compatible Bridge on the headset with eye transmission enabled. Tuner does not deploy or upgrade the APK over ADB.
 2. Connect the headset to PCVR and start SteamVR. The common-provider setup requirements still apply: a matching driver contract, VRSS-permitted VRChat profile, enabled VRSS/MSAA, readable HMD geometry and matching provider/game identity.
 3. For the included experimental 616.92 pair, explicitly select the absolute path to `common-vrss-provider/driver-contracts/616.92.txt` through `VRSS_EXPERIMENTAL_DRIVER_CONTRACT`. See [driver contracts](DRIVER-CONTRACTS.md#included-61692-experimental-contract). This does not add 616.92 to the default driver list.
-4. In **Gaze input**, select **PICO (direct Bridge; development build required)**, enter the headset IPv4 address, and click **Save IP**, then **Start gaze path**. The address is stored in Tuner's configuration. The existing common-provider preflight and profile requirements are unchanged.
+4. In **Gaze input**, select **PICO (direct Bridge 0.6.0+)**, enter the headset IPv4 address, and click **Save IP**, then **Start gaze path**. The address is stored in Tuner's configuration. The existing common-provider preflight and profile requirements are unchanged.
 5. Launch VRChat using the existing common-provider workflow. Stop or switch the route with Tuner's source controls. They stop only the owned PICO client and send `PXR_GAZE_STOP`, not the avatar session's STOP command. Restart the PICO input after calibration changes.
 
 `Start-PICO.cmd` runs the common-session workflow, which can start SteamVR and launch VRChat. It accepts a headset IPv4 address as its first argument or uses the saved address. For provider-only operation:
@@ -35,7 +35,7 @@ The old `pico-gaze-probe --exclusive-test` still uses the avatar protocol and ne
 
 ## Protocol and projection
 
-The development Bridge accepts ASCII datagrams without a trailing newline:
+Bridge accepts ASCII datagrams without a trailing newline:
 
 ```text
 PXR_GAZE_SUB id=<16 lowercase hex digits>

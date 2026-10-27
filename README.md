@@ -12,7 +12,7 @@ The installer includes the tuner, common gaze provider, OpenVR geometry helper, 
 
 For headset-specific eye SDKs and wireless PCVR routes, see [HMD gaze compatibility](docs/HMD-GAZE-COMPATIBILITY.md). The generic SteamVR eye-action bridge remains experimental; the Frame session uses a separate OpenVR foveation-center API and a Frame-specific registration path.
 
-[PICO direct input](docs/PICO.md) uses an independent subscription to a development PicoFacialBridge without VRCFT or a relay, alongside the existing avatar session. Tuner includes source selection and saved headset IPv4 settings; development packaging includes a self-contained NativeAOT client. Published Bridge 0.5.0 lacks this protocol. The included [616.92 exact driver contract](docs/DRIVER-CONTRACTS.md#included-61692-experimental-contract) requires explicit opt-in; default driver selection and existing profile prerequisites are unchanged.
+[PICO direct input](docs/PICO.md) uses an independent subscription to PicoFacialBridge 0.6.0 or later without VRCFT or a relay, alongside the existing avatar session. Tuner includes source selection and saved headset IPv4 settings; development packaging includes a self-contained NativeAOT client. Bridge 0.5.0 lacks this protocol. The included [616.92 exact driver contract](docs/DRIVER-CONTRACTS.md#included-61692-experimental-contract) requires explicit opt-in; default driver selection and existing profile prerequisites are unchanged.
 
 ## Steam Frame (596.02, experimental)
 
