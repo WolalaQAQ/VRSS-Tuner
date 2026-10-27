@@ -8,6 +8,7 @@ $resolved = [IO.Path]::GetFullPath($run)
 if (-not $resolved.StartsWith($allowed,[StringComparison]::OrdinalIgnoreCase) -or
     -not (Test-Path -LiteralPath $resolved -PathType Container)) { throw 'Invalid run directory' }
 'User requested stop' | Set-Content -LiteralPath (Join-Path $resolved 'stop.request') -Encoding ASCII
+'User requested stop' | Set-Content -LiteralPath (Join-Path $resolved 'input-stop.request') -Encoding ASCII
 $varjoPidFile = Join-Path $resolved 'varjo-bridge.pid'
 if (Test-Path -LiteralPath $varjoPidFile -PathType Leaf) {
     $pidText = (Get-Content -LiteralPath $varjoPidFile -Raw).Trim()

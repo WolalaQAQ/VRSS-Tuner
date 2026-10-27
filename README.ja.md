@@ -29,3 +29,5 @@ Frameでは旧来のEDID診断やStart-Providerを使わず、[Frame専用手順
 Visual Studio 2022の「C++によるデスクトップ開発」とInno Setup 6を入れてください。PowerShellから`vrss-tuner\test.ps1`で独立テスト、`vrss-tuner\Build-ReleaseCandidate.ps1`でテスト・ZIP内ファイル検証・インストーラー作成を一括実行できます。`Build-Portable.ps1`は開発用ZIPを作ります。ビルドツールは`vswhere`で検出し、必要なら`VCVARS64_BAT`で指定できます。NVAPIとOpenVRのビルド用ファイルは各ライセンス表示とともに`third_party`にあります。
 
 本プロジェクトのコードはMITライセンスです。[LICENSE](LICENSE)と[第三者ライセンス](THIRD_PARTY_NOTICES.md)を参照してください。NVIDIAとValveのコンポーネントはそれぞれのライセンスに従います。
+
+共通プロバイダー内の入力切替はNVIDIAへの登録を維持します。完全な停止は視線プロバイダーを終了するため、再開時にVRChatの通常再起動が必要な場合があります。Baballoniaの受信はTunerを閉じても継続します。beta.5の検証結果と制約はセットアップガイドを参照してください。

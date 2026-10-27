@@ -19,6 +19,7 @@
 #include <thread>
 #include <vector>
 #include "../common-vrss-provider/config_io.h"
+#include "../vrss-tuner/GazeCalibrationFormat.h"
 #pragma comment(lib,"ws2_32.lib")
 namespace fs=std::filesystem;
 static std::atomic<bool> running{true};
@@ -50,14 +51,22 @@ static std::array<EyeGeometry,2> Geometry(const fs::path& path) {
     }
     return eyes;
 }
-static std::array<float,2> Project(const varjo_Ray& ray,const EyeGeometry& eye,double xGain,double yGain) {
+static GazeCalibration::Values Calibration(const fs::path& config) {
+    const auto fields=ReadSharedConfig(config);
+    std::string text;
+    for(const auto* key:{"left_deg","right_deg","x_gain","y_gain"})text+=std::string(key)+"="+fields.at(key)+"\n";
+    GazeCalibration::Values value;
+    if(!GazeCalibration::Parse(text,value))throw std::runtime_error("Invalid calibration");
+    return value;
+}
+static std::array<float,2> Project(const varjo_Ray& ray,const EyeGeometry& eye,double xGain,double yGain,double offset=0) {
     // Varjo gaze rays are head-relative +X right, +Y up, +Z forward.
     const auto& d=ray.forward;
     if(!std::isfinite(d[0])||!std::isfinite(d[1])||!std::isfinite(d[2])||d[2]<.1)
         throw std::runtime_error("Invalid gaze ray");
     const double length=std::sqrt(d[0]*d[0]+d[1]*d[1]+d[2]*d[2]);
     if(length<.8||length>1.2)throw std::runtime_error("Invalid direction length");
-    const double h[3]={d[0]/d[2]*xGain,d[1]/d[2]*yGain,-1};
+    const double h[3]={std::tan(std::atan(d[0]/d[2]*xGain)+offset*3.141592653589793/180),d[1]/d[2]*yGain,-1};
     double local[3]{};const auto& r=eye.rotation;
     for(int i=0;i<3;++i)for(int j=0;j<3;++j)local[i]+=r[j*3+i]*h[j];
     if(local[2]>=-1e-6)throw std::runtime_error("Eye-space ray behind camera");
@@ -77,13 +86,19 @@ int wmain(int argc,wchar_t** argv) {
     try {
         const auto args=Args(argc,argv);
         const auto eyes=Geometry(args.at(L"--geometry"));
-        const double xGain=args.count(L"--x-gain")?std::stod(args.at(L"--x-gain")):1;
-        const double yGain=args.count(L"--y-gain")?std::stod(args.at(L"--y-gain")):1;
+        double xGain=args.count(L"--x-gain")?std::stod(args.at(L"--x-gain")):1;
+        double yGain=args.count(L"--y-gain")?std::stod(args.at(L"--y-gain")):1;
+        GazeCalibration::Values gain{};
+        const fs::path config=args.count(L"--config")?fs::path(args.at(L"--config")):fs::path();
+        const fs::path stopFile=args.count(L"--stop-file")?fs::path(args.at(L"--stop-file")):fs::path();
+        if(!config.empty()) {gain=Calibration(config);xGain=gain.x_gain;yGain=gain.y_gain;}
         if(!std::isfinite(xGain)||!std::isfinite(yGain)||std::abs(xGain)<.1||std::abs(xGain)>2||
            std::abs(yGain)<.1||std::abs(yGain)>2)throw std::runtime_error("Invalid gains");
         if(args.count(L"--self-test")) {
             varjo_Ray center{};center.forward[2]=1;
             auto a=Project(center,eyes[0],xGain,yGain);
+            auto offset=Project(center,eyes[0],xGain,yGain,3);
+            if(!(offset[0]>a[0]))throw std::runtime_error("Offset self-test failed");
             center.forward[0]=.2;
             auto b=Project(center,eyes[0],xGain,yGain);
             center.forward[0]=0;center.forward[1]=.2;
@@ -106,7 +121,15 @@ int wmain(int argc,wchar_t** argv) {
         target.sin_port=htons(static_cast<u_short>(port));SetConsoleCtrlHandler(Stop,TRUE);
         int64_t lastFrame=-1;uint64_t sequence=0;
         const auto end=std::chrono::steady_clock::now()+std::chrono::seconds(seconds);
+        auto nextConfig=std::chrono::steady_clock::now();
         while(running&&std::chrono::steady_clock::now()<end) {
+            if(!stopFile.empty()&&fs::exists(stopFile))break;
+            const auto now=std::chrono::steady_clock::now();
+            if(!config.empty()&&now>=nextConfig) {
+                try {gain=Calibration(config);xGain=gain.x_gain;yGain=gain.y_gain;}
+                catch(const std::exception&) { /* Preserve the last valid calibration. */ }
+                nextConfig=now+std::chrono::milliseconds(250);
+            }
             std::array<varjo_Gaze,32> frames{};
             const int count=varjo_GetGazeArray(session,frames.data(),static_cast<int32_t>(frames.size()));
             for(int i=0;i<count;++i) {
@@ -115,8 +138,8 @@ int wmain(int argc,wchar_t** argv) {
                 if(gaze.status!=varjo_GazeStatus_Valid||gaze.leftStatus<varjo_GazeEyeStatus_Compensated||
                    gaze.rightStatus<varjo_GazeEyeStatus_Compensated)continue;
                 try {
-                    auto l=Project(gaze.leftEye,eyes[0],xGain,yGain);
-                    auto r=Project(gaze.rightEye,eyes[1],xGain,yGain);
+                    auto l=Project(gaze.leftEye,eyes[0],xGain,yGain,gain.left_deg);
+                    auto r=Project(gaze.rightEye,eyes[1],xGain,yGain,gain.right_deg);
                     LARGE_INTEGER qpc{};QueryPerformanceCounter(&qpc);
                     UdpGazeV1 packet{};packet.sequence=++sequence;packet.qpc=uint64_t(qpc.QuadPart);
                     packet.leftX=l[0];packet.leftY=l[1];packet.rightX=r[0];packet.rightY=r[1];

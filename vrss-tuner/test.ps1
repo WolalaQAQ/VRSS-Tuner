@@ -3,8 +3,21 @@ $here = $PSScriptRoot
 . (Join-Path $here 'Find-Vcvars.ps1')
 $vcvars = Find-Vcvars64
 New-Item -ItemType Directory -Path (Join-Path $here 'build') -Force | Out-Null
+$inputExe = Join-Path $here 'build\gaze_input_test.exe'
+$inputBuild = 'call "' + $vcvars + '" >nul && cl /nologo /std:c++17 /utf-8 /EHsc /O2 /W4 "' +
+    (Join-Path $here 'gaze_input_test.cpp') + '" /Fo"' + (Join-Path $here 'build\gaze_input_test.obj') + '" /Fe"' + $inputExe + '"'
+& cmd.exe /d /c $inputBuild
+if ($LASTEXITCODE -ne 0) { throw 'Gaze input compilation failed.' }
+& $inputExe
+if ($LASTEXITCODE -ne 0) { throw 'Gaze input network regression tests failed.' }
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $here 'test-start-provider.ps1')
 if ($LASTEXITCODE -ne 0) { throw 'Windows PowerShell provider launch smoke test failed.' }
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $here 'test-gaze-route.ps1')
+if ($LASTEXITCODE -ne 0) { throw 'Windows PowerShell gaze route switch test failed.' }
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $here 'test-input-recovery.ps1')
+if ($LASTEXITCODE -ne 0) { throw 'Windows PowerShell input recovery test failed.' }
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $here 'test-route-concurrency.ps1')
+if ($LASTEXITCODE -ne 0) { throw 'Windows PowerShell route concurrency test failed.' }
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $here 'test-start-common-session.ps1')
 if ($LASTEXITCODE -ne 0) { throw 'Windows PowerShell common-session smoke test failed.' }
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $here 'test-portable-hash.ps1')

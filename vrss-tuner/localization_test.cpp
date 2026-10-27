@@ -4,6 +4,9 @@
 int main() {
     if (language::Text(L"視線補正") != L"視線補正") return 1;
     language::english = true;
+    if (language::Text(L"選択した経路に切替") != L"Switch to selected source") return 16;
+    if (language::Text(L"Baballonia OSC: バックグラウンドで受信中\r\nOSCパケット 12 / 視線値 48") !=
+        L"Baballonia OSC: background listener running\r\nOSC packets 12 / gaze values 48") return 17;
     if (language::Text(L"視線補正") != L"Gaze calibration") return 2;
     if (language::Text(L"視線補正を反映") != L"Apply calibration") return 7;
     if (language::Text(L"0.1度刻み（-5～+5）") != L"0.1° steps (-5 to +5)") return 14;

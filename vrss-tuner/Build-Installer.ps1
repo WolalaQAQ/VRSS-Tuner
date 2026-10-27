@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$Bundle)
+﻿param([Parameter(Mandatory=$true)][string]$Bundle)
 $ErrorActionPreference='Stop'
 $here=$PSScriptRoot
 $resolved=[IO.Path]::GetFullPath($Bundle)
@@ -23,6 +23,6 @@ $output=Join-Path $here 'release'
 New-Item -ItemType Directory -Path $output -Force | Out-Null
 & $compiler "/DBundleDir=$resolved" "/DOutputDir=$output" (Join-Path $here 'installer\VRSS-Tuner.iss') | Out-Null
 if($LASTEXITCODE -ne 0){throw "Installer build failed: $LASTEXITCODE"}
-$setup=Join-Path $output 'VRSS-Tuner-Setup-0.1.0-beta.4.exe'
+$setup=Join-Path $output 'VRSS-Tuner-Setup-0.1.0-beta.5.exe'
 if(-not (Test-Path -LiteralPath $setup -PathType Leaf)){throw 'Installer output is missing.'}
 [pscustomobject]@{Installer=$setup;Sha256=(Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash;VerifiedFiles=@($manifest.files).Count}

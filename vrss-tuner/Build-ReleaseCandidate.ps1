@@ -28,7 +28,7 @@ try {
     $listed = @($manifest.files)
     $required = @('VRSS Tuner.exe','steam_vrchat_launch.exe','steamvr_autostart.exe','vrss-tuner.vrmanifest','openvr_api.dll','Install-Steam-Launch-Bridge.ps1',
         'Install-Steam-Launch-Bridge.cmd','common-vrss-provider/common_vrss_provider.exe','Audit-Driver.cmd','Audit-Driver.ps1',
-        'Start-Common-Session.ps1','Start-Provider-Only.cmd','Install-SteamVR-Autostart.cmd','Remove-SteamVR-Autostart.cmd',
+        'Start-Common-Session.ps1','Gaze-Route.ps1','Set-Gaze-Route.ps1','Start-Provider-Only.cmd','Install-SteamVR-Autostart.cmd','Remove-SteamVR-Autostart.cmd',
         'steamvr-gaze-bridge/steamvr_gaze_bridge.exe','psvr2-gaze-bridge/psvr2_gaze_bridge.exe',
         'vive-streaming-gaze-bridge/ViveStreamingGazeBridge.exe',
         'varjo-gaze-bridge/varjo_gaze_bridge.exe','pimax-eye-bridge/driver_sranibro_eye.dll',
@@ -46,6 +46,11 @@ try {
             if ($count -ne 3 -or $prefix[0] -ne 239 -or $prefix[1] -ne 187 -or $prefix[2] -ne 191) {
                 throw "Windows PowerShell script is missing UTF-8 BOM: $name"
             }
+            $scriptReader = [IO.StreamReader]::new($scriptStream,[Text.Encoding]::UTF8)
+            try { $scriptText = $scriptReader.ReadToEnd() } finally { $scriptReader.Dispose() }
+            $tokens = $null; $parseErrors = $null
+            $null = [Management.Automation.Language.Parser]::ParseInput($scriptText,[ref]$tokens,[ref]$parseErrors)
+            if ($parseErrors.Count) { throw "Windows PowerShell syntax error in $name : $($parseErrors[0].Message)" }
         } finally { $scriptStream.Dispose() }
     }
     $actual = @($archive.Entries | Where-Object { $_.Name })
@@ -78,6 +83,7 @@ $report = Join-Path $release "$stem.release-candidate.json"
 [ordered]@{
     format = 1
     sourceRevision = $revision
+    sourceDirty = [bool]@(& git -C $research status --porcelain)
     builtAt = (Get-Date).ToString('o')
     installer = [IO.Path]::GetFileName($setupResult.Installer)
     installerSha256 = $setupHash

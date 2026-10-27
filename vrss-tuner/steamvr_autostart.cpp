@@ -1,4 +1,4 @@
-#include <windows.h>
+﻿#include <windows.h>
 #include <shellapi.h>
 #include <tlhelp32.h>
 #include <filesystem>
@@ -121,6 +121,9 @@ int wmain(int argc,wchar_t** argv) {
     if(!Running(L"VRSS Tuner.exe") &&
        reinterpret_cast<INT_PTR>(ShellExecuteW(nullptr,L"open",tuner.c_str(),nullptr,bundle.c_str(),SW_SHOWNORMAL))<=32)
         return 6;
+    wchar_t local[32768]{};
+    if(GetEnvironmentVariableW(L"LOCALAPPDATA",local,DWORD(std::size(local))) &&
+       fs::is_regular_file(fs::path(local)/L"VRSS Tuner/gaze-paused.txt"))return 0;
     const int source=LastSource();
     if(source<=0 || Running(L"common_vrss_provider.exe") || Running(L"vrss_gaze_provider.exe"))return 0;
     static const wchar_t* routes[]={L"",L"Baballonia",L"PSVR2Toolkit",L"SRanibro",

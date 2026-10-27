@@ -1,13 +1,23 @@
 param([ValidateSet('Baballonia','PSVR2Toolkit','SRanibro','ViveProEye','ViveStreaming','SteamVREye','Varjo')]
       [string]$InputRoute='Baballonia',
       [ValidateRange(0,30)][int]$HotAttachWaitSeconds=8,
-      [switch]$ProviderOnly,[switch]$WaitForHeadset,[switch]$RequireExistingSteamVR)
+      [switch]$ProviderOnly,[switch]$WaitForHeadset,[switch]$RequireExistingSteamVR,
+      [ValidateRange(1,65535)][int]$OscPort=9020,
+      [ValidateRange(0,65535)][int]$OscForward=8888)
 $ErrorActionPreference = 'Stop'
 $bundle = $PSScriptRoot
 $gameWasRunning = [bool](Get-Process VRChat -ErrorAction SilentlyContinue)
 $gameClosed = $false
 $providerStarted = $false
 $gameLaunched = $false
+$oscSettings = Join-Path $env:LOCALAPPDATA 'VRSS Tuner\osc-settings.txt'
+if ($InputRoute -eq 'Baballonia' -and (Test-Path -LiteralPath $oscSettings -PathType Leaf)) {
+    $values = @(Get-Content -LiteralPath $oscSettings)
+    if ($values.Count -eq 2 -and $values[0] -match '^[0-9]{1,5}$' -and $values[1] -match '^[0-9]{1,5}$') {
+        if (-not $PSBoundParameters.ContainsKey('OscPort') -and [int]$values[0] -ge 1 -and [int]$values[0] -le 65535) { $OscPort = [int]$values[0] }
+        if (-not $PSBoundParameters.ContainsKey('OscForward') -and [int]$values[1] -le 65535) { $OscForward = [int]$values[1] }
+    }
+}
 
 function Wait-ForProcess([string]$name, [int]$seconds) {
     $deadline = (Get-Date).AddSeconds($seconds)
@@ -73,7 +83,7 @@ try {
     $setup = $null
     $attempts = if ($WaitForHeadset) { 40 } else { 3 }
     for ($attempt = 0; $attempt -lt $attempts; $attempt++) {
-        $setup = & (Join-Path $bundle 'Test-Setup.ps1') -AllowRunningVRChat:$gameWasRunning | ConvertFrom-Json
+        $setup = & (Join-Path $bundle 'Test-Setup.ps1') -AllowRunningVRChat:$gameWasRunning -AllowOfficialHandoff | ConvertFrom-Json
         if ($setup.readyForProviderLaunch) { break }
         $transient = @($setup.reasons | Where-Object {
             $_ -in @('Start SteamVR with a connected HMD.',
@@ -94,7 +104,7 @@ try {
     $needsKeyedLaunch = [bool]$setup.hmdTestBranch
     Write-Output ('Starting common gaze provider from ' + $InputRoute + '...')
     & (Join-Path $bundle 'Start-Provider.ps1') -InputRoute $InputRoute `
-        -AllowRunningVRChat:([bool](Get-Process VRChat -ErrorAction SilentlyContinue))
+        -AllowRunningVRChat:([bool](Get-Process VRChat -ErrorAction SilentlyContinue)) -OscPort $OscPort -OscForward $OscForward
     if (-not (Get-Process common_vrss_provider -ErrorAction SilentlyContinue)) {
         throw 'The common gaze provider did not stay running.'
     }

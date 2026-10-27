@@ -1,4 +1,4 @@
-#ifndef BundleDir
+﻿#ifndef BundleDir
   #error BundleDir must name a verified portable bundle
 #endif
 #ifndef OutputDir
@@ -8,7 +8,7 @@
 [Setup]
 AppId={{A4C668E3-91A6-4898-AC0B-AEA1A0A6F749}
 AppName=VRSS Tuner
-AppVersion=0.1.0-beta.4
+AppVersion=0.1.0-beta.5
 AppPublisher=challenger0303
 AppPublisherURL=https://github.com/challenger0303/VRSS-Tuner
 DefaultDirName={localappdata}\Programs\VRSS Tuner
@@ -19,7 +19,7 @@ PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir={#OutputDir}
-OutputBaseFilename=VRSS-Tuner-Setup-0.1.0-beta.4
+OutputBaseFilename=VRSS-Tuner-Setup-0.1.0-beta.5
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern

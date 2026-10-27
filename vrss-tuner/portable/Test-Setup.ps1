@@ -1,4 +1,4 @@
-﻿param([switch]$AllowRunningVRChat)
+﻿param([switch]$AllowRunningVRChat,[switch]$AllowOfficialHandoff)
 $ErrorActionPreference = 'Stop'
 $bundle = $PSScriptRoot
 $provider = Join-Path $bundle 'common-vrss-provider\common_vrss_provider.exe'
@@ -88,7 +88,7 @@ $official = [bool](Get-Process vrss_gaze_provider -ErrorAction SilentlyContinue)
 $common = [bool](Get-Process common_vrss_provider -ErrorAction SilentlyContinue)
 if (-not $steamVr) { $reasons.Add('Start SteamVR with a connected HMD.') }
 if ($vrchat -and -not $AllowRunningVRChat) { $reasons.Add('Close VRChat normally before starting the gaze provider.') }
-if ($official) { $reasons.Add('An official gaze provider is active; keep that route or stop it using the vendor controls.') }
+if ($official -and -not $AllowOfficialHandoff) { $reasons.Add('An official gaze provider is active; keep that route or stop it using the vendor controls.') }
 if ($common) { $reasons.Add('A common provider is already running.') }
 $geometry = $false
 $geometryFile = Join-Path $data 'geometry.txt'

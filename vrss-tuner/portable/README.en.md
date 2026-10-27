@@ -2,7 +2,21 @@
 
 This is an experimental Windows app for NVIDIA VRSS2 settings and gaze input. Extract the ZIP to a writable folder. Switch Japanese/English at the top right of the tuner.
 
-**The maintainer's verified setup is Pimax Dream Air** (GeForce RTX 5090 / NVIDIA driver 610.88). A contributor also smoke-tested the cleaned Steam Frame route on 596.02; see the separate Frame instructions below. See the [full English setup guide](https://github.com/challenger0303/VRSS-Tuner/blob/main/docs/SETUP.md).
+**The maintainer's verified setup is Pimax Dream Air** (GeForce RTX 5090 / NVIDIA driver 610.88). A contributor also smoke-tested the cleaned Steam Frame route on 596.02; see the separate Frame instructions below. See the [full English setup guide](https://github.com/challenger0303/VRSS-Tuner/blob/v0.1.0-beta.5/docs/SETUP.md).
+
+## Switching and stopping sources
+
+Select a source in **Gaze input**, then press **Switch to selected source** (or **Start gaze path** when stopped). An existing common path no longer disables this button. Switching affects gaze providers only; it does not restart VRChat or SteamVR. When selecting a common source, only the Pimax VRSS sender is closed; its eye-camera runtime and face-tracking applications remain running.
+
+**Stop** stops the running gaze paths regardless of the selected source, including after reopening Tuner. Live PIDs and fresh run records are checked if the saved active-run pointer is stale. Stop also pauses SteamVR autostart until an explicit Start. Failures are reported instead of claiming the provider stopped.
+
+Switching common inputs preserves the provider PID and NVIDIA registration. **Stop** fully exits the provider. If running VRChat retains NVIDIA IPC handles, restarting after a full Stop may require closing and relaunching VRChat. This limitation is not hidden by leaving an invisible provider running or reporting a failed start as successful.
+
+## Baballonia OSC
+
+Set Baballonia OSC output to **127.0.0.1:9020**, enable Eye output, and select **Baballonia OSC** in Tuner. The receive port defaults to 9020; forwarding to VRCFaceTracking defaults to 8888 (0 disables forwarding). Baballonia's default destination is 8888, so it must be redirected to Tuner's receive port. Do not bind two applications to the same receive port.
+
+Press Start/Switch. The common provider receives OSC in the background, including while Tuner is closed. The status distinguishes zero packets, packets without supported gaze, and fresh eye data. Bind failures report the port and socket error. Supported names are LeftEyeX, LeftEyeY, RightEyeX and RightEyeY, including custom prefixes and nested OSC bundles. All four axes must be fresh within 150ms; stale gaze is not submitted. Original OSC packets are forwarded unchanged to the chosen forward port.
 
 ## First steps
 
@@ -35,11 +49,11 @@ For the common path, connect the headset and start its gaze software. Turn on VR
 | Quest Pro via Steam Link; other experimental SteamVR sources | SteamVR eye action (hardware unverified) | Enable PC eye-data sharing, then run `Start-SteamVR-Eye.cmd`; the single fixation ray is projected into both eyes. For Steam Frame use the dedicated tab above. |
 | Varjo XR-4 / Aero / XR-3 / VR-3 | Varjo Native SDK (hardware unverified) | Run Varjo Base and `Start-Varjo.cmd`; the installed `VarjoLib.dll` is required |
 
-The tuner's **Start gaze path** button opens the provider-only script for the selected source. For Baballonia it also starts the OSC relay. `Start-Provider.cmd` remains available for manual diagnostics. If the VIVE DLL is outside the standard installation directories, set `VRSS_VIVE_SDK_DLL` to the full path of `SRanipal.dll` or `VS_PC_SDK.dll`. For Varjo, set `VRSS_VARJO_DLL` to the installed `VarjoLib.dll` if needed; no vendor DLL is bundled. A missing DLL stops before the administrator prompt. If Pro Eye reports only one valid eye, the bridge projects that fresh direction into both eye views. VIVE, SteamVR eye action and Varjo routes have passed code/synthetic tests only; VRChat gaze tracking remains unverified. Varjo gains are read at launch and its per-eye angle offsets are not yet applied.
+The tuner's **Start gaze path** button opens the provider-only script for the selected source. For Baballonia, the background provider also receives OSC independently of the UI. `Start-Provider.cmd` remains available for manual diagnostics. If the VIVE DLL is outside the standard installation directories, set `VRSS_VIVE_SDK_DLL` to the full path of `SRanipal.dll` or `VS_PC_SDK.dll`. For Varjo, set `VRSS_VARJO_DLL` to the installed `VarjoLib.dll` if needed; no vendor DLL is bundled. A missing DLL stops before the administrator prompt. If Pro Eye reports only one valid eye, the bridge projects that fresh direction into both eye views. VIVE, SteamVR eye action and Varjo routes have passed code/synthetic tests only; VRChat gaze tracking remains unverified. Varjo reloads gains and per-eye angle offsets while running.
 
 The four stages in **Gaze input** monitor the route actually running, across source selections. Green means that stage was observed, amber means a running path still needs verification, and gray means stopped or waiting for data. For Baballonia, input reception and forwarding are separate. For SRanibro, PSVR2 Toolkit, VIVE, SteamVR eye action and Varjo, the source process, fresh gaze reaching the common provider, provider registration, and NVIDIA acceptance are separate checks. When the selected and running routes differ, both are shown. Even a green final stage does not prove a visible VRSS image change.
 
-The blue rings show actual gaze coordinates; green dots magnify motion for display only. Display zoom is 1–4x and does not change gaze data, calibration, or the VRSS region. On the common path, fresh provider input moves the dots even before VRChat requests gaze; the caption distinguishes **provider input** from **NVIDIA-accepted gaze**. On the Pimax path, the preview uses NVIDIA queue coordinates when readable and falls back to Pimax SDK input otherwise. The dots are not the high-quality region boundary, so verify rendering inside the headset. Selecting a source does not switch a running provider; restart VRChat after applying VRSS settings.
+The blue rings show actual gaze coordinates; green dots magnify motion for display only. Display zoom is 1–4x and does not change gaze data, calibration, or the VRSS region. On the common path, fresh provider input moves the dots even before VRChat requests gaze; the caption distinguishes **provider input** from **NVIDIA-accepted gaze**. On the Pimax path, the preview uses NVIDIA queue coordinates when readable and falls back to Pimax SDK input otherwise. The dots are not the high-quality region boundary, so verify rendering inside the headset. Press Switch to selected source to change a running gaze path. Graphics settings may still require restarting VRChat.
 
 Starting the common provider requires Windows administrator confirmation. Launch VRChat, enable MSAA, and check gaze reception and NVIDIA acceptance in the tuner. The dots represent submitted gaze coordinates, not the rendered high-quality region. Run `Stop-Provider.cmd` when finished. That stop request also ends the Toolkit, VIVE, SteamVR and Varjo bridges.
 
@@ -51,7 +65,7 @@ For a manual experiment, `VRSS_HMD_ID_CANDIDATE` still accepts a **decimal** `ve
 
 See the [HMD compatibility table](HMD-GAZE-COMPATIBILITY.md) for implementation and live-test status by headset.
 
-The common SRanibro route reads the local BrokenEye-format stream on `127.0.0.1:5555` and uses the connected headset's OpenVR projection geometry and tuner's calibration. Headsets may use different gaze conventions, so calibrate and verify each one. It will not work unless SRanibro outputs valid binocular gaze in that format. If an official Pimax provider is active, select that route or switch through the vendor's normal controls before using the common provider.
+The common SRanibro route reads the local BrokenEye-format stream on `127.0.0.1:5555` and uses the connected headset's OpenVR projection geometry and tuner's calibration. Headsets may use different gaze conventions, so calibrate and verify each one. It will not work unless SRanibro outputs valid binocular gaze in that format. Switching to the common route closes only the official Pimax VRSS sender through the vendor control.
 
 Face-tracking coexistence is audited in [FACE-TRACKING-COEXISTENCE.md](FACE-TRACKING-COEXISTENCE.md) (Japanese). The PICO single-client diagnostic probe cannot share its session with the VRCFT PICO module. Concurrent VIVE and PSVR2 hardware operation has not been verified yet.
 

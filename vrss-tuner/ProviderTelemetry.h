@@ -18,6 +18,7 @@ struct Snapshot {
     uint64_t sent{};
     uint64_t submitFailures{};
     uint64_t sourceSequence{};
+    uint64_t oscDatagrams{}, oscReadings{};
     std::array<float, 4> locations{};
     uint64_t accepted() const { return sent >= submitFailures ? sent - submitFailures : 0; }
 };
@@ -79,6 +80,8 @@ inline bool Parse(std::string_view json, Snapshot& out) {
         parsed.submitFailures > parsed.sent ||
         !Number(json, "sourceSequence", parsed.sourceSequence) ||
         !Locations(json, parsed.locations)) return false;
+    Number(json,"oscDatagrams",parsed.oscDatagrams);
+    Number(json,"oscReadings",parsed.oscReadings);
     out = parsed;
     return true;
 }

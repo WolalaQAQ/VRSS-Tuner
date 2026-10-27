@@ -1,3 +1,3 @@
 @echo off
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Start-Common-Session.ps1" -InputRoute SRanibro
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Set-Gaze-Route.ps1" -InputRoute SRanibro
 pause

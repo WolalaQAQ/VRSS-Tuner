@@ -16,6 +16,10 @@ function Start-Process {
           [string]$WindowStyle, [switch]$PassThru)
     if ($Verb -ne 'RunAs' -or -not $PassThru) { throw 'Unexpected worker launch arguments' }
     $global:VrssSmokeLaunched = $true
+    $arguments = [regex]::Match($ArgumentList,'-RunDirectory "([^"]+)"')
+    if (-not $arguments.Success) { throw 'Missing provider run directory.' }
+    [IO.File]::WriteAllText((Join-Path $arguments.Groups[1].Value 'status.json'),
+        ('{"registered":true,"pid":' + $PID + '}'),[Text.Encoding]::ASCII)
     return [Diagnostics.Process]::GetCurrentProcess()
 }
 function Get-Process {
